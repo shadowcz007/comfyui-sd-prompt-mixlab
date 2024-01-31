@@ -7,6 +7,7 @@ import openai
 import time,json
 import urllib.error
 import requests
+import psutil
 
 python = sys.executable
 global process
@@ -63,9 +64,21 @@ def run_llamafile(file_name):
 
 def stop_llamafile():
     global process
-    if process:
-        process.kill()
-        process=None
+    if not process:
+        return "No running process to kill"
+    
+    # Get the process ID of the running llamafile process
+    process_id = process.pid
+    os.system('taskkill /t /f /pid {}'.format(process_id))
+  
+    # Check if the process is still running
+    if psutil.pid_exists(process_id):
+        return "Failed to kill the process"
+
+    process = None
+
+    return "Process killed successfully"
+
 
 def get_server_status():
     url = 'http://localhost:8080/health'
@@ -106,10 +119,10 @@ async def llamafile_hander(request):
                 }
         if data['task']=='stop':
             res=stop_llamafile()
-            if res==None:
-                result={
-                    "data":"success"
+            result={
+                    "data":res
                 }
+                
         if data['task']=='health':
             result={
                     "data":get_server_status()
