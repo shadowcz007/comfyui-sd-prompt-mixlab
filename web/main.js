@@ -1,4 +1,7 @@
 import { llama } from './lib/completion.js'
+import { app } from '../../../scripts/app.js'
+import { api } from '../../../scripts/api.js'
+let _MYALLNODES = {}
 
 async function chat () {
   const request = llama('Tell me a joke', 'http://127.0.0.1:8080', {
@@ -109,21 +112,6 @@ async function stopModel () {
   return res
 }
 
-;(async () => {
-  let h = await health()
-  console.log('health', h)
-
-  if (h.match('Error')) {
-    let models = await getModels()
-    console.log(models)
-    if (models.length > 0) {
-      await runModel(models[0])
-    }
-  } else {
-    Test()
-  }
-})()
-
 // makeChatCompletionRequest(`给这个json文件生成描述性的说明，说明主要做了什么工作：${JSON.stringify((await app.graphToPrompt()).output)}`)
 
 async function parseTextFromWorkflow () {
@@ -152,3 +140,442 @@ async function parseTextFromWorkflow () {
 
 
  */
+
+let isScriptLoaded = {}
+
+function loadExternalScript (url) {
+  return new Promise((resolve, reject) => {
+    if (isScriptLoaded[url]) {
+      resolve()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = url
+    script.onload = () => {
+      isScriptLoaded[url] = true
+      resolve()
+    }
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+// 创建图表
+function createChart (allNodes, nodes) {
+  //category
+  let category = {}
+
+  // 全部目录
+  for (const name in allNodes) {
+    category[allNodes[name].category] = {
+      name: allNodes[name].category,
+      path: allNodes[name].category,
+      children: {},
+      value: 0
+    }
+  }
+
+  // 统计使用情况
+  for (const node of nodes) {
+    if (!allNodes[node.name]) {
+      allNodes[node.name] = {
+        category: ['Reroute', 'Note', 'PrimitiveNode'].includes(node.name)
+          ? 'utils'
+          : '-----'
+      }
+      // console.log(node.value)
+    }
+    if (!category[allNodes[node.name].category]) {
+      category[allNodes[node.name].category] = {
+        name: allNodes[node.name].category,
+        path: allNodes[node.name].category,
+        children: {},
+        value: 0
+      }
+    }
+
+    category[allNodes[node.name].category].value += node.value
+
+    if (!category[allNodes[node.name].category].children[node.name]) {
+      category[allNodes[node.name].category].children[node.name] = {
+        name: node.name,
+        path: `${allNodes[node.name].category}/${node.name}`,
+        value: 0
+      }
+    }
+
+    category[allNodes[node.name].category].children[node.name].value +=
+      node.value
+  }
+
+  console.log('_MYALLNODES', category)
+
+  // 处理成表格读取的数据
+  category = Array.from(Object.values(category), c => {
+    c.children = Object.values(c.children)
+    return c
+  })
+
+  let data = {}
+  // 对目录进一步计算一级目录 /分隔符
+  for (const c of category) {
+    let cc = c.name.split('/')
+    if (cc.length > 1) {
+      if (!data[cc[0]]) {
+        data[cc[0]] = {
+          name: cc[0],
+          path: cc[0],
+          children: [],
+          value: 0
+        }
+      }
+      data[cc[0]].children.push(c)
+      data[cc[0]].value += c.value
+    } else {
+      if (!data[c.name]) {
+        data[c.name] = {
+          name: c.name,
+          path: c.path,
+          children: [],
+          value: 0
+        }
+      }
+      data[c.name].children = [...data[c.name].children, ...c.children]
+      data[c.name].value += c.value
+    }
+  }
+
+  data = Object.values(data)
+
+  let div = document.querySelector('#mixlab_comfyui_llamafile')
+
+  let chartDom = div.querySelector('.chart')
+  if (!chartDom) {
+    chartDom = document.createElement('div')
+    chartDom.style = `height:80vh;width:650px`
+    chartDom.className = 'chart'
+    div.appendChild(chartDom)
+  } else {
+    chartDom.style.display = `block`
+  }
+
+  var myChart = echarts.init(chartDom)
+  var option
+  // console.log(nodes)
+  option = {
+    series: [
+      {
+        type: 'treemap',
+        data: data
+      }
+    ]
+  }
+  option && myChart.setOption(option)
+}
+
+// 加载nodes数据
+async function loadMyAllNodes () {
+  var nodes = {}
+
+  try {
+    let myApps = await get_my_app()
+    // console.log(myApps)
+
+    // app 数据分析
+    for (const app of myApps) {
+      for (const node of app.data.nodes) {
+        if (!nodes[node.type]) nodes[node.type] = { name: node.type, value: 0 }
+        nodes[node.type].value++
+      }
+    }
+  } catch (error) {}
+
+  // 模板数据
+  const templates = await loadTemplate()
+
+  Array.from(templates, t => {
+    let j = JSON.parse(t.data)
+    for (let node of j.nodes) {
+      if (!nodes[node.type]) nodes[node.type] = { name: node.type, value: 0 }
+      nodes[node.type].value++
+    }
+  })
+  nodes = Object.values(nodes).sort((a, b) => b.value - a.value)
+
+  return nodes
+}
+
+
+async function loadCurrentNodes () {
+  var nodes = {}
+
+  for (const node of (await app.graphToPrompt()).workflow.nodes) {
+    if (!nodes[node.type]) nodes[node.type] = { name: node.type, value: 0 }
+      nodes[node.type].value++
+  }
+   
+  nodes = Object.values(nodes).sort((a, b) => b.value - a.value)
+
+  return nodes
+}
+
+
+// 分析模板里存储的nodes
+async function createNodesCharts () {
+  const menu = document.querySelector('.comfy-menu')
+  const separator = document.createElement('div')
+  separator.style = `margin: 20px 0px;
+  width: 100%;
+  height: 1px;
+  background: var(--border-color);
+  `
+  menu.append(separator)
+
+  const appsButton = document.createElement('button')
+  appsButton.textContent = 'Nodes Map'
+
+  appsButton.onclick = () => {
+    let div = document.querySelector('#mixlab_comfyui_llamafile')
+    if (!div) {
+      div = document.createElement('div')
+      div.id = 'mixlab_comfyui_llamafile'
+      document.body.appendChild(div)
+
+      let btn = document.createElement('div')
+      btn.style = `display: flex;
+     width: calc(100% - 24px);
+     justify-content: space-between;
+     align-items: center;
+     padding: 0 12px;
+     height: 44px;`
+      div.appendChild(btn)
+      let btnB = document.createElement('button')
+      let textB = document.createElement('p')
+      btn.appendChild(textB)
+      btn.appendChild(btnB)
+      textB.style.fontSize = '12px'
+      textB.innerText = `Nodes Map ♾️Mixlab`
+
+      btnB.style = `float: right; border: none; color: var(--input-text);
+     background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;`
+      btnB.addEventListener('click', () => {
+        div.style.display = 'none'
+      })
+      btnB.innerText = 'X'
+
+      let content = document.createElement('div')
+      content.className = 'content'
+      div.appendChild(content)
+
+      // node分析的功能
+      let nodesBtn = document.createElement('button')
+      nodesBtn.style = `color: var(--input-text);
+      background-color: var(--comfy-input-bg);
+      border-radius: 8px;
+      border-color: var(--border-color);
+      cursor: pointer;`
+      nodesBtn.innerText = `All Nodes`;
+
+      let currentNodesBtn = document.createElement('button')
+      currentNodesBtn.style = `color: var(--input-text);
+      background-color: var(--comfy-input-bg);
+      border-radius: 8px;
+      border-color: var(--border-color);
+      cursor: pointer;`
+      currentNodesBtn.innerText = `Current Nodes`;
+
+      currentNodesBtn.addEventListener('click', async e => {
+        e.preventDefault()
+        // if (currentNodesBtn.getAttribute('data-display') === '1') {
+        //   // 关闭
+        //   let div = document.querySelector('#mixlab_comfyui_llamafile')
+        //   let chartDom = div.querySelector('.chart')
+        //   if (chartDom) {
+        //     chartDom.style.display = `none`
+        //   }
+        //   currentNodesBtn.setAttribute('data-display', '0')
+        // } else {
+          //
+          let nodes = await loadCurrentNodes()
+          //已安装的所有节点
+
+          createChart(_MYALLNODES, nodes)
+
+          currentNodesBtn.setAttribute('data-display', '1')
+        // }
+      })
+      content.appendChild(currentNodesBtn)
+
+      nodesBtn.addEventListener('click', async e => {
+        e.preventDefault()
+        // if (nodesBtn.getAttribute('data-display') === '1') {
+        //   // 关闭
+        //   let div = document.querySelector('#mixlab_comfyui_llamafile')
+        //   let chartDom = div.querySelector('.chart')
+        //   if (chartDom) {
+        //     chartDom.style.display = `none`
+        //   }
+        //   nodesBtn.setAttribute('data-display', '0')
+        // } else {
+          //
+          let nodes = await loadMyAllNodes()
+          //已安装的所有节点
+
+          createChart(_MYALLNODES, nodes)
+
+          nodesBtn.setAttribute('data-display', '1')
+        // }
+      })
+      content.appendChild(nodesBtn)
+
+      // 悬浮框拖动事件
+      div.addEventListener('mousedown', function (e) {
+        var startX = e.clientX
+        var startY = e.clientY
+        var offsetX = div.offsetLeft
+        var offsetY = div.offsetTop
+
+        function moveBox (e) {
+          var newX = e.clientX
+          var newY = e.clientY
+          var deltaX = newX - startX
+          var deltaY = newY - startY
+          div.style.left = offsetX + deltaX + 'px'
+          div.style.top = offsetY + deltaY + 'px'
+          localStorage.setItem(
+            'mixlab_app_pannel',
+            JSON.stringify({ x: div.style.left, y: div.style.top })
+          )
+        }
+
+        function stopMoving () {
+          document.removeEventListener('mousemove', moveBox)
+          document.removeEventListener('mouseup', stopMoving)
+        }
+
+        document.addEventListener('mousemove', moveBox)
+        document.addEventListener('mouseup', stopMoving)
+      })
+    }
+    if (div.style.display == 'flex') {
+      div.style.display = 'none'
+    } else {
+      let pos = JSON.parse(
+        localStorage.getItem('mixlab_app_pannel') ||
+          JSON.stringify({ x: 0, y: 0 })
+      )
+
+      div.style = `
+      flex-direction: column;
+      align-items: end;
+      display:flex;
+      position: absolute; 
+      top: ${pos.y}; left: ${pos.x}; width: 650px; 
+      color: var(--descrip-text);
+      background-color: var(--comfy-menu-bg);
+      padding: 10px; 
+      border: 1px solid black;z-index: 999999999;padding-top: 0;`
+    }
+  }
+  menu.append(appsButton)
+
+  // ;(async () => {
+  //   let h = await health()
+  //   console.log('health', h)
+
+  //   if (h.match('Error')) {
+  //     let models = await getModels()
+  //     console.log(models)
+  //     if (models.length > 0) {
+  //       await runModel(models[0])
+  //     }
+  //   } else {
+  //     Test()
+  //   }
+  // })()
+}
+
+function get_url () {
+  let api_host = `${window.location.hostname}:${window.location.port}`
+  let api_base = ''
+  let url = `${window.location.protocol}//${api_host}${api_base}`
+  return url
+}
+
+async function getAllNodes () {
+  let url = get_url()
+  const res = await fetch(`${url}/object_info`)
+  return await res.json()
+}
+
+async function get_my_app (filename = null, category = '') {
+  let url = get_url()
+  const res = await fetch(`${url}/mixlab/workflow`, {
+    method: 'POST',
+    body: JSON.stringify({
+      task: 'my_app',
+      filename,
+      category,
+      admin: true
+    })
+  })
+  let result = await res.json()
+  let data = []
+  try {
+    for (const res of result.data) {
+      let { app, workflow } = res.data
+      if (app.filename)
+        data.push({
+          ...app,
+          data: workflow,
+          date: res.date
+        })
+    }
+  } catch (error) {}
+  return data
+}
+
+const loadTemplate = async () => {
+  const id = 'Comfy.NodeTemplates'
+  const file = 'comfy.templates.json'
+
+  let templates = []
+  if (app.storageLocation === 'server') {
+    if (app.isNewUserSession) {
+      // New user so migrate existing templates
+      const json = localStorage.getItem(id)
+      if (json) {
+        templates = JSON.parse(json)
+      }
+      await api.storeUserData(file, json, { stringify: false })
+    } else {
+      const res = await api.getUserData(file)
+      if (res.status === 200) {
+        try {
+          templates = await res.json()
+        } catch (error) {}
+      } else if (res.status !== 404) {
+        console.error(res.status + ' ' + res.statusText)
+      }
+    }
+  } else {
+    const json = localStorage.getItem(id)
+    if (json) {
+      templates = JSON.parse(json)
+    }
+  }
+
+  return templates ?? []
+}
+
+app.registerExtension({
+  name: 'Comfy.llamafile.main',
+  init () {},
+  setup () {
+    createNodesCharts()
+    loadExternalScript('/extensions/comfyui-llamafile/lib/echarts.min.js')
+    getAllNodes().then(n => (_MYALLNODES = n))
+  },
+  async loadedGraphNode (node, app) {}
+})
