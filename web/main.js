@@ -24,6 +24,17 @@ async function Test () {
   console.log((await response.json()).content)
 }
 
+async function completion (prompt) {
+  let response = await fetch('http://127.0.0.1:8080/completion', {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt,
+      n_predict: 512
+    })
+  })
+  return (await response.json()).content
+}
+
 async function makeChatCompletionRequest (content) {
   const url = 'http://127.0.0.1:8080/v1/chat/completions'
   const headers = {
@@ -306,20 +317,18 @@ async function loadMyAllNodes () {
   return nodes
 }
 
-
 async function loadCurrentNodes () {
   var nodes = {}
 
   for (const node of (await app.graphToPrompt()).workflow.nodes) {
     if (!nodes[node.type]) nodes[node.type] = { name: node.type, value: 0 }
-      nodes[node.type].value++
+    nodes[node.type].value++
   }
-   
+
   nodes = Object.values(nodes).sort((a, b) => b.value - a.value)
 
   return nodes
 }
-
 
 // 分析模板里存储的nodes
 async function createNodesCharts () {
@@ -375,7 +384,7 @@ async function createNodesCharts () {
       border-radius: 8px;
       border-color: var(--border-color);
       cursor: pointer;`
-      nodesBtn.innerText = `All Nodes`;
+      nodesBtn.innerText = `All Nodes`
 
       let currentNodesBtn = document.createElement('button')
       currentNodesBtn.style = `color: var(--input-text);
@@ -383,7 +392,7 @@ async function createNodesCharts () {
       border-radius: 8px;
       border-color: var(--border-color);
       cursor: pointer;`
-      currentNodesBtn.innerText = `Current Nodes`;
+      currentNodesBtn.innerText = `Current Nodes`
 
       currentNodesBtn.addEventListener('click', async e => {
         e.preventDefault()
@@ -396,13 +405,13 @@ async function createNodesCharts () {
         //   }
         //   currentNodesBtn.setAttribute('data-display', '0')
         // } else {
-          //
-          let nodes = await loadCurrentNodes()
-          //已安装的所有节点
+        //
+        let nodes = await loadCurrentNodes()
+        //已安装的所有节点
 
-          createChart(_MYALLNODES, nodes)
+        createChart(_MYALLNODES, nodes)
 
-          currentNodesBtn.setAttribute('data-display', '1')
+        currentNodesBtn.setAttribute('data-display', '1')
         // }
       })
       content.appendChild(currentNodesBtn)
@@ -418,19 +427,88 @@ async function createNodesCharts () {
         //   }
         //   nodesBtn.setAttribute('data-display', '0')
         // } else {
-          //
-          let nodes = await loadMyAllNodes()
-          //已安装的所有节点
+        //
+        let nodes = await loadMyAllNodes()
+        //已安装的所有节点
 
-          createChart(_MYALLNODES, nodes)
+        createChart(_MYALLNODES, nodes)
 
-          nodesBtn.setAttribute('data-display', '1')
+        nodesBtn.setAttribute('data-display', '1')
         // }
       })
       content.appendChild(nodesBtn)
 
+      let localLLMBtn = document.createElement('button')
+      localLLMBtn.style = `color: var(--input-text);
+      background-color: var(--comfy-input-bg);
+      border-radius: 8px;
+      border-color: var(--border-color);
+      cursor: pointer;`
+      localLLMBtn.innerText = `Local LLM`
+      content.appendChild(localLLMBtn)
+      localLLMBtn.addEventListener('click', async e => {
+        e.preventDefault()
+        let div = document.querySelector('#mixlab_comfyui_llamafile')
+        let chartDom = div.querySelector('.chart')
+        if (chartDom) {
+          chartDom.style.display = `none`
+        }
+        let llm = document.querySelector('.llm')
+        if (!llm) {
+          llm = document.createElement('div')
+          llm.setAttribute('contenteditable', true)
+          content.appendChild(llm)
+          llm.addEventListener('input', e => {
+            e.preventDefault()
+            if (e.data == '?' || e.data == '？') {
+              // 出现提示
+              if (llm.querySelector('.ask')) return
+
+              llm.innerText = llm.innerText.replace(e.data, '')
+
+              let b = document.createElement('button')
+              b.className = 'ask'
+              b.innerText = 'ASK LLM'
+              b.setAttribute('contenteditable', 'false')
+              b.addEventListener('click', async e => {
+                e.preventDefault()
+                b.remove()
+                let text = await completion(llm.textContent)
+                llm.innerHTML += text
+              })
+              llm.appendChild(b)
+            }
+            console.log(llm.textContent)
+          })
+        }
+
+        let h = await health()
+        console.log('health', h)
+        llm.innerHTML = h
+
+        if (h.match('Error')) {
+          let models = await getModels()
+          console.log(models)
+          // llm.innerHTML += models
+          if (models.length > 0) {
+            Array.from(models, m => {
+              let b = document.createElement('button')
+              b.innerText = m
+              b.setAttribute('contenteditable', 'false')
+              b.addEventListener('click', e => {
+                e.preventDefault()
+                runModel(m)
+              })
+              llm.appendChild(b)
+            })
+          }
+        } else {
+          Test()
+        }
+      })
+
       // 悬浮框拖动事件
-      div.addEventListener('mousedown', function (e) {
+      btn.addEventListener('mousedown', function (e) {
         var startX = e.clientX
         var startY = e.clientY
         var offsetX = div.offsetLeft

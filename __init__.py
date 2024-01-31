@@ -44,10 +44,11 @@ def get_models():
 def run_llamafile(file_name):
     global process
     if process:
-        return process
+        return 'http://127.0.0.1:8080'
     # Check the operating system
     operating_system = platform.system()
     mp=os.path.join(model_path,file_name)
+
     # Set the file name and command based on the operating system
     # file_name = "llava-v1.5-7b-q4.llamafile"
     command = f"{mp} -ngl 9999"
