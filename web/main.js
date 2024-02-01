@@ -60,12 +60,13 @@ function convertImageUrlToBase64 (imageUrl) {
     .then(blob => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result.replace(/data:image\/[^;]+;base64,/, ''))
+        reader.onloadend = () =>
+          resolve(reader.result.replace(/data:image\/[^;]+;base64,/, ''))
         reader.onerror = reject
         reader.readAsDataURL(blob)
       })
     })
-} 
+}
 
 async function getSelectImageNode () {
   var nodes = app.canvas.selected_nodes
@@ -74,7 +75,7 @@ async function getSelectImageNode () {
   for (var id in nodes) {
     if (nodes[id].imgs) {
       let base64 = await convertImageUrlToBase64(nodes[id].imgs[0].currentSrc)
-      imageNode = { data: base64, id:10 }
+      imageNode = { data: base64, id: 10 }
     }
   }
   return imageNode
@@ -105,13 +106,18 @@ async function Test () {
   console.log((await response.json()).content)
 }
 
-async function completion (prompt) {
+async function completion (prompt, imageNode) {
+  let data = {
+    prompt,
+    n_predict: 512
+  }
+  if (imageNode) {
+    data = { ...data, image_data: [imageNode] }
+  }
+
   let response = await fetch('http://127.0.0.1:8080/completion', {
     method: 'POST',
-    body: JSON.stringify({
-      prompt,
-      n_predict: 512
-    })
+    body: JSON.stringify(data)
   })
   return (await response.json()).content
 }
@@ -501,7 +507,7 @@ async function createNodesCharts () {
       content.appendChild(currentNodesBtn)
 
       nodesBtn.addEventListener('click', async e => {
-        e.preventDefault() 
+        e.preventDefault()
         //
         let nodes = await loadMyAllNodes()
         //已安装的所有节点
@@ -514,7 +520,7 @@ async function createNodesCharts () {
       content.appendChild(nodesBtn)
 
       let localLLMBtn = document.createElement('button')
-      localLLMBtn.className='runLLM'
+      localLLMBtn.className = 'runLLM'
       localLLMBtn.style = `color: var(--input-text);
       background-color: var(--comfy-input-bg);
       border-radius: 8px;
@@ -583,19 +589,6 @@ async function createNodesCharts () {
 
               llm.innerText = llm.innerText.replace(e.data, '')
 
-              // let b = document.createElement('button')
-              // b.className = 'ask'
-              // b.innerText = 'Add'
-              // b.setAttribute('contenteditable', 'false')
-              // b.addEventListener('click', async e => {
-              //   e.preventDefault()
-              //   Array.from(llm.querySelectorAll('[contenteditable=false]'), c =>
-              //     c.remove()
-              //   )
-              //   // let text = await completion(llm.textContent)
-              //   // llm.innerHTML += text
-              // })
-
               // 自动续写
               let texts = document.createElement('div')
               texts.innerHTML = llm.innerHTML
@@ -605,7 +598,10 @@ async function createNodesCharts () {
               llm.setAttribute('contenteditable', 'false')
               console.log(texts.textContent)
               if (e.data == '@') {
-                llm.innerHTML += `${await completion(texts.textContent)}`
+                llm.innerHTML += `${await completion(
+                  texts.textContent,
+                  await getSelectImageNode()
+                )}`
               } else if (e.data == '#') {
                 await chat(texts.textContent, await getSelectImageNode(), t => {
                   llm.innerHTML += t
@@ -643,17 +639,15 @@ async function createNodesCharts () {
                 e.preventDefault()
                 localLLMBtn.innerText = `Loading`
                 llm.setAttribute('contenteditable', 'false')
-                llm.innerText=''
+                llm.innerText = ''
                 await runModel(m)
-               window._checkHealth= setInterval(async()=>{
-
-                let h = await health()
-                if(h==='ok'){
-                  llm.setAttribute('contenteditable', 'true');
-                  clearInterval(window._checkHealth)
-                }
-            
-                },2000)
+                window._checkHealth = setInterval(async () => {
+                  let h = await health()
+                  if (h === 'ok') {
+                    llm.setAttribute('contenteditable', 'true')
+                    clearInterval(window._checkHealth)
+                  }
+                }, 2000)
               })
               llm.appendChild(b)
             })
@@ -696,8 +690,8 @@ async function createNodesCharts () {
         document.addEventListener('mousemove', moveBox)
         document.addEventListener('mouseup', stopMoving)
       })
-    }else{
-      div.querySelector('.runLLM').innerText='Local AI assistant'
+    } else {
+      div.querySelector('.runLLM').innerText = 'Local AI assistant'
     }
 
     if (div.style.display == 'flex') {
