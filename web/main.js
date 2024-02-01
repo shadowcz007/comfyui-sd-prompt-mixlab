@@ -60,7 +60,7 @@ function convertImageUrlToBase64 (imageUrl) {
     .then(blob => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result.split(',')[1])
+        reader.onloadend = () => resolve(reader.result.split('base64,')[1])
         reader.onerror = reject
         reader.readAsDataURL(blob)
       })
