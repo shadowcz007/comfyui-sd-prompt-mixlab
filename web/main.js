@@ -53,20 +53,41 @@ style.appendChild(document.createTextNode(cssRule))
 // Append the style element to the document head
 document.head.appendChild(style)
 
-function getSelectImageNode () {
+function convertImageUrlToBase64 (imageUrl) {
+  return fetch(imageUrl)
+    .then(response => response.blob())
+    .then(blob => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+    })
+}
+
+async function getSelectImageNode () {
   var nodes = app.canvas.selected_nodes
   var imageNode
+  if (Object.keys(app.canvas.selected_nodes).length == 0) return
   for (var id in nodes) {
     if (nodes[id].imgs) {
-      imageNode = { url: nodes[id].imgs[0].currentSrc, id }
+      let base64 = await convertImageUrlToBase64(nodes[id].imgs[0].currentSrc)
+      imageNode = { data: base64, id }
     }
   }
   return imageNode
 }
 
 async function chat (prompt, imageNode, callback) {
+  let data = {
+    n_predict: 800
+  }
+  if (imageNode) {
+    data = { ...data, image_data: [imageNode] }
+  }
   const request = llama(prompt, 'http://127.0.0.1:8080', {
-    n_predict: 800,
+    n_predict: 800
     // image_data: [
     //   {
     //     data: image,
@@ -438,6 +459,7 @@ async function createNodesCharts () {
      background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;`
       btnB.addEventListener('click', () => {
         div.style.display = 'none'
+        stopModel()
       })
       btnB.innerText = 'X'
 
@@ -600,7 +622,7 @@ async function createNodesCharts () {
               if (e.data == '@') {
                 llm.innerHTML += `${await completion(texts.textContent)}`
               } else if (e.data == '#') {
-                await chat(texts.textContent,null, t => {
+                await chat(texts.textContent, await getSelectImageNode(), t => {
                   llm.innerHTML += t
                 })
               }
@@ -614,6 +636,7 @@ async function createNodesCharts () {
           })
         }
         llm.setAttribute('contenteditable', 'true')
+        llm.innerText='';
         llm.focus()
         // 加载中
         localLLMBtn.innerText = `Loading`
@@ -680,6 +703,7 @@ async function createNodesCharts () {
     }
     if (div.style.display == 'flex') {
       div.style.display = 'none'
+      stopModel()
     } else {
       let pos = JSON.parse(
         localStorage.getItem('mixlab_app_pannel') ||
