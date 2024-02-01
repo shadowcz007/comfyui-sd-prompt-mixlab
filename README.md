@@ -1,4 +1,5 @@
 *施工中，未完成
+*请注意，本节点为实验性节点，旨在探索人机协作的创作方式
 
 > 模型下载：[llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true),放到models/llamafile
 
