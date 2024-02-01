@@ -10,6 +10,7 @@ const style = document.createElement('style')
 const cssRule = `
 #llm {
   margin: 24px;
+  outline: 1px solid;
 }
 
 #llm[contenteditable="false"] {
@@ -59,7 +60,7 @@ function convertImageUrlToBase64 (imageUrl) {
     .then(blob => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result)
+        reader.onloadend = () => resolve(reader.result.split(',')[1])
         reader.onerror = reject
         reader.readAsDataURL(blob)
       })
