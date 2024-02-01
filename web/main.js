@@ -87,15 +87,7 @@ async function chat (prompt, imageNode, callback) {
   if (imageNode) {
     data = { ...data, image_data: [imageNode] }
   }
-  const request = llama(prompt, 'http://127.0.0.1:8080', {
-    n_predict: 800
-    // image_data: [
-    //   {
-    //     data: image,
-    //     id: imageNode.id
-    //   }
-    // ]
-  })
+  const request = llama(prompt, 'http://127.0.0.1:8080', data)
   for await (const chunk of request) {
     if (callback) callback(chunk.data.content)
   }
