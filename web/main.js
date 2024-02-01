@@ -3,6 +3,47 @@ import { app } from '../../../scripts/app.js'
 import { api } from '../../../scripts/api.js'
 let _MYALLNODES = {}
 
+// css
+// Create a style element
+const style = document.createElement('style')
+// Define the CSS rule for scrollbar width
+const cssRule = `
+#llm {
+  margin: 24px;
+}
+
+#llm[contenteditable="false"] {
+  animation: borderChange 3s infinite;
+  border-top: 5px solid;
+}
+#llm [contenteditable="false"]{
+  display: inline;
+  border: 1px solid gray;
+  padding: 4px;
+  margin: 4px;
+  user-select: none;
+  font-size: 12px; 
+}
+
+@keyframes borderChange {
+  0% {
+    border-color: red;
+  }
+  50% {
+    border-color: blue;
+  }
+  100% {
+    border-color: green;
+  }
+}
+
+`
+// Add the CSS rule to the style element
+style.appendChild(document.createTextNode(cssRule))
+
+// Append the style element to the document head
+document.head.appendChild(style)
+
 async function chat () {
   const request = llama('Tell me a joke', 'http://127.0.0.1:8080', {
     n_predict: 800
@@ -171,6 +212,7 @@ function loadExternalScript (url) {
     document.head.appendChild(script)
   })
 }
+// loadExternalScript('/extensions/comfyui-llamafile/lib/editorjs.umd.js')
 
 // 创建图表
 function createChart (allNodes, nodes) {
@@ -375,6 +417,7 @@ async function createNodesCharts () {
 
       let content = document.createElement('div')
       content.className = 'content'
+      content.style.width = '100%'
       div.appendChild(content)
 
       // node分析的功能
@@ -444,23 +487,63 @@ async function createNodesCharts () {
       border-radius: 8px;
       border-color: var(--border-color);
       cursor: pointer;`
-      localLLMBtn.innerText = `Local LLM`
+      localLLMBtn.innerText = `Local AI assistant`
       content.appendChild(localLLMBtn)
+
+      let addNodeBtn = document.createElement('button')
+      addNodeBtn.style = `color: var(--input-text);
+      background-color: var(--comfy-input-bg);
+      border-radius: 8px;
+      border-color: var(--border-color);
+      cursor: pointer;display:none`
+      addNodeBtn.innerText = `Add Node`
+      content.appendChild(addNodeBtn)
+
+      // 添加node
+      addNodeBtn.addEventListener('click', e => {
+        e.preventDefault()
+        var node = LiteGraph.createNode('TextInput_')
+
+        // 获取文本
+        let llm = document.querySelector('#llm')
+        let texts = document.createElement('div')
+        texts.innerHTML = llm.innerHTML
+        Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
+          c.remove()
+        )
+        node.widgets[0].value = texts.textContent
+
+        var last_node = app.graph.getNodeById(app.graph.last_node_id)
+        if (last_node) {
+          node.pos = [
+            last_node.pos[0] + last_node.size[0] + 24,
+            last_node.pos[1] - 48
+          ]
+        }
+
+        app.canvas.graph.add(node, false)
+        app.canvas.centerOnNode(node)
+      })
+
+      // 使用ai助手
       localLLMBtn.addEventListener('click', async e => {
         e.preventDefault()
+        addNodeBtn.style.display = 'block'
         let div = document.querySelector('#mixlab_comfyui_llamafile')
         let chartDom = div.querySelector('.chart')
         if (chartDom) {
           chartDom.style.display = `none`
         }
-        let llm = document.querySelector('.llm')
+        let llm = document.querySelector('#llm')
+
         if (!llm) {
           llm = document.createElement('div')
+          llm.id = 'llm'
           llm.setAttribute('contenteditable', true)
           content.appendChild(llm)
-          llm.addEventListener('input', e => {
+          llm.addEventListener('input', async e => {
             e.preventDefault()
-            if (e.data == '?' || e.data == '？') {
+            if (e.data == '@') {
               // 出现提示
               if (llm.querySelector('.ask')) return
 
@@ -468,23 +551,39 @@ async function createNodesCharts () {
 
               let b = document.createElement('button')
               b.className = 'ask'
-              b.innerText = 'ASK LLM'
+              b.innerText = 'Add'
               b.setAttribute('contenteditable', 'false')
               b.addEventListener('click', async e => {
                 e.preventDefault()
-                b.remove()
-                let text = await completion(llm.textContent)
-                llm.innerHTML += text
+                Array.from(llm.querySelectorAll('[contenteditable=false]'), c =>
+                  c.remove()
+                )
+                // let text = await completion(llm.textContent)
+                // llm.innerHTML += text
               })
-              llm.appendChild(b)
+
+              // 自动续写
+              let texts = document.createElement('div')
+              texts.innerHTML = llm.innerHTML
+              Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
+                c.remove()
+              )
+              llm.setAttribute('contenteditable', 'false')
+              console.log(texts.textContent)
+              llm.innerHTML += `${await completion(texts.textContent)}`
+
+              // llm.appendChild(b)
+              llm.setAttribute('contenteditable', 'true')
             }
             console.log(llm.textContent)
           })
         }
+        llm.setAttribute('contenteditable', 'true')
+        // 加载中
+        llm.innerHTML = `<p contenteditable="false">Loading</p><br>`
 
         let h = await health()
         console.log('health', h)
-        llm.innerHTML = h
 
         if (h.match('Error')) {
           let models = await getModels()
@@ -498,12 +597,18 @@ async function createNodesCharts () {
               b.addEventListener('click', e => {
                 e.preventDefault()
                 runModel(m)
+                llm.innerHTML = `<p contenteditable="false">Status:Loading</p><br>`
               })
               llm.appendChild(b)
             })
+          } else {
+            // 状态
+            llm.innerHTML = `<p contenteditable="false">pls download models</p><br>`
           }
         } else {
-          Test()
+          // 状态
+          llm.innerHTML = `<p contenteditable="false">Status:${h}</p><br>`
+          // Test()
         }
       })
 
