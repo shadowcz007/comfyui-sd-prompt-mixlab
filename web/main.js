@@ -652,9 +652,15 @@ async function createNodesCharts () {
                 llm.setAttribute('contenteditable', 'false')
                 llm.innerText=''
                 await runModel(m)
-                setTimeout(()=>{
-                  llm.setAttribute('contenteditable', 'true')
-                },5000)
+               window._checkHealth= setInterval(async()=>{
+
+                let h = await health()
+                if(h==='ok'){
+                  llm.setAttribute('contenteditable', 'true');
+                  clearInterval(window._checkHealth)
+                }
+            
+                },2000)
               })
               llm.appendChild(b)
             })
