@@ -508,16 +508,7 @@ async function createNodesCharts () {
       content.appendChild(currentNodesBtn)
 
       nodesBtn.addEventListener('click', async e => {
-        e.preventDefault()
-        // if (nodesBtn.getAttribute('data-display') === '1') {
-        //   // 关闭
-        //   let div = document.querySelector('#mixlab_comfyui_llamafile')
-        //   let chartDom = div.querySelector('.chart')
-        //   if (chartDom) {
-        //     chartDom.style.display = `none`
-        //   }
-        //   nodesBtn.setAttribute('data-display', '0')
-        // } else {
+        e.preventDefault() 
         //
         let nodes = await loadMyAllNodes()
         //已安装的所有节点
@@ -530,6 +521,7 @@ async function createNodesCharts () {
       content.appendChild(nodesBtn)
 
       let localLLMBtn = document.createElement('button')
+      localLLMBtn.className='runLLM'
       localLLMBtn.style = `color: var(--input-text);
       background-color: var(--comfy-input-bg);
       border-radius: 8px;
@@ -636,7 +628,7 @@ async function createNodesCharts () {
           })
         }
         llm.setAttribute('contenteditable', 'true')
-        llm.innerText='';
+        llm.innerText = ''
         llm.focus()
         // 加载中
         localLLMBtn.innerText = `Loading`
@@ -654,10 +646,15 @@ async function createNodesCharts () {
               let b = document.createElement('button')
               b.innerText = m
               b.setAttribute('contenteditable', 'false')
-              b.addEventListener('click', e => {
+              b.addEventListener('click', async e => {
                 e.preventDefault()
-                runModel(m)
                 localLLMBtn.innerText = `Loading`
+                llm.setAttribute('contenteditable', 'false')
+                llm.innerText=''
+                await runModel(m)
+                setTimeout(()=>{
+                  llm.setAttribute('contenteditable', 'true')
+                },5000)
               })
               llm.appendChild(b)
             })
@@ -700,7 +697,10 @@ async function createNodesCharts () {
         document.addEventListener('mousemove', moveBox)
         document.addEventListener('mouseup', stopMoving)
       })
+    }else{
+      div.querySelector('.runLLM').innerText='Local AI assistant'
     }
+
     if (div.style.display == 'flex') {
       div.style.display = 'none'
       stopModel()
@@ -723,21 +723,6 @@ async function createNodesCharts () {
     }
   }
   menu.append(appsButton)
-
-  // ;(async () => {
-  //   let h = await health()
-  //   console.log('health', h)
-
-  //   if (h.match('Error')) {
-  //     let models = await getModels()
-  //     console.log(models)
-  //     if (models.length > 0) {
-  //       await runModel(models[0])
-  //     }
-  //   } else {
-  //     Test()
-  //   }
-  // })()
 }
 
 function get_url () {
