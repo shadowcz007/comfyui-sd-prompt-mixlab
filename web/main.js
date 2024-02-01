@@ -16,6 +16,15 @@ const cssRule = `
   animation: borderChange 3s infinite;
   border-top: 5px solid;
 }
+
+#llm button{
+  color: var(--input-text);
+      background-color: var(--comfy-input-bg);
+      border-radius: 8px;
+      border-color: var(--border-color);
+      cursor: pointer;
+}
+
 #llm [contenteditable="false"]{
   display: inline;
   border: 1px solid gray;
@@ -44,12 +53,12 @@ style.appendChild(document.createTextNode(cssRule))
 // Append the style element to the document head
 document.head.appendChild(style)
 
-async function chat () {
-  const request = llama('Tell me a joke', 'http://127.0.0.1:8080', {
+async function chat (prompt, callback) {
+  const request = llama(prompt, 'http://127.0.0.1:8080', {
     n_predict: 800
   })
   for await (const chunk of request) {
-    //   document.write(chunk.data.content)
+    if (callback) callback(chunk.data.content)
   }
 }
 
@@ -511,7 +520,8 @@ async function createNodesCharts () {
         Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
           c.remove()
         )
-        node.widgets[0].value = texts.textContent
+        node.widgets[0].value =
+          window.getSelection().toString() || texts.textContent
 
         var last_node = app.graph.getNodeById(app.graph.last_node_id)
         if (last_node) {
@@ -528,7 +538,7 @@ async function createNodesCharts () {
       // 使用ai助手
       localLLMBtn.addEventListener('click', async e => {
         e.preventDefault()
-        addNodeBtn.style.display = 'block'
+        // addNodeBtn.style.display = 'block'
         let div = document.querySelector('#mixlab_comfyui_llamafile')
         let chartDom = div.querySelector('.chart')
         if (chartDom) {
@@ -543,24 +553,24 @@ async function createNodesCharts () {
           content.appendChild(llm)
           llm.addEventListener('input', async e => {
             e.preventDefault()
-            if (e.data == '@') {
+            if (e.data == '@' || e.data == '#') {
               // 出现提示
               if (llm.querySelector('.ask')) return
 
               llm.innerText = llm.innerText.replace(e.data, '')
 
-              let b = document.createElement('button')
-              b.className = 'ask'
-              b.innerText = 'Add'
-              b.setAttribute('contenteditable', 'false')
-              b.addEventListener('click', async e => {
-                e.preventDefault()
-                Array.from(llm.querySelectorAll('[contenteditable=false]'), c =>
-                  c.remove()
-                )
-                // let text = await completion(llm.textContent)
-                // llm.innerHTML += text
-              })
+              // let b = document.createElement('button')
+              // b.className = 'ask'
+              // b.innerText = 'Add'
+              // b.setAttribute('contenteditable', 'false')
+              // b.addEventListener('click', async e => {
+              //   e.preventDefault()
+              //   Array.from(llm.querySelectorAll('[contenteditable=false]'), c =>
+              //     c.remove()
+              //   )
+              //   // let text = await completion(llm.textContent)
+              //   // llm.innerHTML += text
+              // })
 
               // 自动续写
               let texts = document.createElement('div')
@@ -570,17 +580,26 @@ async function createNodesCharts () {
               )
               llm.setAttribute('contenteditable', 'false')
               console.log(texts.textContent)
-              llm.innerHTML += `${await completion(texts.textContent)}`
+              if (e.data == '@') {
+                llm.innerHTML += `${await completion(texts.textContent)}`
+              } else if (e.data == '#') {
+                await chat(texts.textContent, t => {
+                  llm.innerHTML += t
+                })
+              }
 
               // llm.appendChild(b)
               llm.setAttribute('contenteditable', 'true')
+
+              addNodeBtn.style.display = 'block'
             }
             console.log(llm.textContent)
           })
         }
         llm.setAttribute('contenteditable', 'true')
+        llm.focus()
         // 加载中
-        llm.innerHTML = `<p contenteditable="false">Loading</p><br>`
+        localLLMBtn.innerText = `Loading`
 
         let h = await health()
         console.log('health', h)
@@ -590,6 +609,7 @@ async function createNodesCharts () {
           console.log(models)
           // llm.innerHTML += models
           if (models.length > 0) {
+            localLLMBtn.innerText = `select models`
             Array.from(models, m => {
               let b = document.createElement('button')
               b.innerText = m
@@ -597,17 +617,17 @@ async function createNodesCharts () {
               b.addEventListener('click', e => {
                 e.preventDefault()
                 runModel(m)
-                llm.innerHTML = `<p contenteditable="false">Status:Loading</p><br>`
+                localLLMBtn.innerText = `Loading`
               })
               llm.appendChild(b)
             })
           } else {
             // 状态
-            llm.innerHTML = `<p contenteditable="false">pls download models</p><br>`
+            localLLMBtn.innerText = `pls download models>`
           }
         } else {
           // 状态
-          llm.innerHTML = `<p contenteditable="false">Status:${h}</p><br>`
+          localLLMBtn.innerText = `Status:${h}`
           // Test()
         }
       })
