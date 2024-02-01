@@ -53,9 +53,26 @@ style.appendChild(document.createTextNode(cssRule))
 // Append the style element to the document head
 document.head.appendChild(style)
 
-async function chat (prompt, callback) {
+function getSelectImageNode () {
+  var nodes = app.canvas.selected_nodes
+  var imageNode
+  for (var id in nodes) {
+    if (nodes[id].imgs) {
+      imageNode = { url: nodes[id].imgs[0].currentSrc, id }
+    }
+  }
+  return imageNode
+}
+
+async function chat (prompt, imageNode, callback) {
   const request = llama(prompt, 'http://127.0.0.1:8080', {
-    n_predict: 800
+    n_predict: 800,
+    // image_data: [
+    //   {
+    //     data: image,
+    //     id: imageNode.id
+    //   }
+    // ]
   })
   for await (const chunk of request) {
     if (callback) callback(chunk.data.content)
@@ -583,7 +600,7 @@ async function createNodesCharts () {
               if (e.data == '@') {
                 llm.innerHTML += `${await completion(texts.textContent)}`
               } else if (e.data == '#') {
-                await chat(texts.textContent, t => {
+                await chat(texts.textContent,null, t => {
                   llm.innerHTML += t
                 })
               }
