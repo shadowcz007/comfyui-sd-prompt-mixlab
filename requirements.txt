@@ -1,1 +1,3 @@
 aiohttp
+pytest-playwright
+git+https://github.com/shadowcz007/shot-scraper.git

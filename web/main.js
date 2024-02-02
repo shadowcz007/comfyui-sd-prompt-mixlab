@@ -11,6 +11,8 @@ const cssRule = `
 #llm {
   margin: 24px;
   outline: 1px solid;
+  height: 60vh;
+  overflow-y: scroll;
 }
 
 #llm[contenteditable="false"] {
@@ -54,6 +56,31 @@ style.appendChild(document.createTextNode(cssRule))
 // Append the style element to the document head
 document.head.appendChild(style)
 
+// rag提示工程
+function createRagPrompt (userQuestion, contexts) {
+  const context = contexts
+    .map((c, i) => `[[citation:${i + 1}]] ${c['title'] + '.' + c['caption']}`)
+    .join('\n\n')
+
+  const _rag_query_text = `
+You are a large language AI assistant built by Lepton AI. You are given a user question, and please write clean, concise and accurate answer to the question. You will be given a set of related contexts to the question, each starting with a reference number like [[citation:x]], where x is a number. Please use the context and cite the context at the end of each sentence if applicable.
+
+Your answer must be correct, accurate and written by an expert using an unbiased and professional tone. Please limit to 1024 tokens. Do not give any information that is not related to the question, and do not repeat. Say "information is missing on" followed by the related topic, if the given context do not provide sufficient information.
+
+Please cite the contexts with the reference numbers, in the format [citation:x]. If a sentence comes from multiple contexts, please list all applicable citations, like [citation:3][citation:5]. Other than code and specific names and citations, your answer must be written in the same language as the question.
+
+Here are the set of contexts:
+
+${context}
+
+Remember, don't blindly repeat the contexts verbatim. And here is the user question:
+
+${userQuestion}
+
+`
+  return _rag_query_text
+}
+
 function convertImageUrlToBase64 (imageUrl) {
   return fetch(imageUrl)
     .then(response => response.blob())
@@ -79,6 +106,26 @@ async function getSelectImageNode () {
     }
   }
   return imageNode
+}
+
+async function search (keyword) {
+  try {
+    const response = await fetch('/search/bing', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ keyword })
+    })
+    const data = await response.json()
+    // 处理返回的数据
+    console.log(data)
+    return data
+  } catch (error) {
+    // 处理错误情况
+    console.error(error)
+    return []
+  }
 }
 
 async function chat (prompt, imageNode, callback) {
@@ -597,14 +644,33 @@ async function createNodesCharts () {
               )
               llm.setAttribute('contenteditable', 'false')
               console.log(texts.textContent)
+
+              let textContent = texts.textContent.trim()
+
+              // 是否需要调用rag：
+              if (
+                textContent.startsWith('Q:') ||
+                textContent.startsWith('Q：') ||
+                textContent.startsWith('q：') ||
+                textContent.startsWith('q:')
+              ) {
+                let ks = textContent.slice(2)
+                if (ks) {
+                  const contexts = await search(ks)
+                  if (contexts && contexts.length > 0) {
+                    textContent = createRagPrompt(ks, contexts)
+                  }
+                }
+              }
+
               if (e.data == '@') {
                 llm.innerHTML += `${await completion(
-                  texts.textContent,
+                  textContent,
                   await getSelectImageNode()
-                )}`
+                )}`.replace(/\n/g, "<br>");
               } else if (e.data == '#') {
-                await chat(texts.textContent, await getSelectImageNode(), t => {
-                  llm.innerHTML += t
+                await chat(textContent, await getSelectImageNode(), t => {
+                  llm.innerHTML += t.replace(/\n/g, "<br>");
                 })
               }
 
