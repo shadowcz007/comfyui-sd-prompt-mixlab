@@ -31,3 +31,14 @@
 
 
 > python_embeded/Scripts/playwright install chromium
+
+
+
+<!-- 改进节点分类 -->
+	const defs = await api.getNodeDefs();
+		
+		for (const nodeId in defs) {
+			// defs[nodeId].category='app/test'
+			console.log(defs[nodeId].category,defs[nodeId].name)
+			this.registerNodeDef(nodeId, defs[nodeId]);
+		}
