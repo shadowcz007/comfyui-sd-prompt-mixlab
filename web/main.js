@@ -130,7 +130,7 @@ async function search (keyword) {
 
 async function chat (prompt, imageNode, callback) {
   let data = {
-    n_predict: 800
+    n_predict: 256
   }
   if (imageNode) {
     data = { ...data, image_data: [imageNode] }
@@ -156,7 +156,8 @@ async function Test () {
 async function completion (prompt, imageNode) {
   let data = {
     prompt,
-    n_predict: 512
+    n_predict: 512,
+    // stream:true
   }
   if (imageNode) {
     data = { ...data, image_data: [imageNode] }

@@ -41,7 +41,7 @@ def get_models():
             res.append(file)
     return res
 
-def run_llamafile(file_name):
+def run_llamafile(llamafile,file_name):
     global process
     if process:
         return 'http://127.0.0.1:8080'
@@ -51,7 +51,10 @@ def run_llamafile(file_name):
 
     # Set the file name and command based on the operating system
     # file_name = "llava-v1.5-7b-q4.llamafile"
-    command = f"{mp} -ngl 9999"
+    #todo 修改为llama cmd 运行
+    #   ./llamafile.exe -ngl 9999 -m openchat-3.5-0106.Q4_K_M.gguf --server --nobrowser
+    
+    command = f"{llamafile} -m {mp} --n-gpu-layers 15 --server --nobrowser"
 
     # Grant execution permission on macOS, Linux, or BSD
     if operating_system in ["Darwin", "Linux", "FreeBSD", "OpenBSD"]:
@@ -101,6 +104,7 @@ routes = PromptServer.instance.routes
 @routes.post('/llamafile')
 async def llamafile_hander(request):
     data = await request.json()
+    dirname=os.path.dirname(__file__)
     result={
         "data":""
     }
@@ -113,7 +117,9 @@ async def llamafile_hander(request):
             model_name=get_models()[0]
             if 'model_name' in data:
                 model_name=data['model_name']
-            res=run_llamafile(model_name)
+            #todo 修改为llama cmd 运行
+            #   ./llamafile.exe -ngl 9999 -m openchat-3.5-0106.Q4_K_M.gguf --server --nobrowser
+            res=run_llamafile(os.path.join(dirname,'llamafile.exe'),model_name)
             if res:
                 result={
                     "data":res
