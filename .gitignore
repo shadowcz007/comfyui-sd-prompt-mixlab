@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 test.py
 data.json
+gemma-2b-it-q4_k_m.gguf
