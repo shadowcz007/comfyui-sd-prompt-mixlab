@@ -13,6 +13,7 @@ const cssRule = `
   outline: 1px solid;
   height: 60vh;
   overflow-y: scroll;
+  padding: 12px;
 }
 
 #llm[contenteditable="false"] {
@@ -156,7 +157,7 @@ async function Test () {
 async function completion (prompt, imageNode) {
   let data = {
     prompt,
-    n_predict: 512,
+    n_predict: 512
     // stream:true
   }
   if (imageNode) {
@@ -466,8 +467,417 @@ async function loadCurrentNodes () {
   return nodes
 }
 
-// 分析模板里存储的nodes
-async function createNodesCharts () {
+function createCurrentNodeBtn () {
+  let currentNodesBtn = document.createElement('button')
+  currentNodesBtn.style = `color: var(--input-text);
+  background-color: var(--comfy-input-bg);
+  border-radius: 8px;
+  border-color: var(--border-color);
+  cursor: pointer;`
+  currentNodesBtn.innerText = `Current Nodes`
+
+  currentNodesBtn.addEventListener('click', async e => {
+    e.preventDefault()
+    // if (currentNodesBtn.getAttribute('data-display') === '1') {
+    //   // 关闭
+    //   let div = document.querySelector('#mixlab_comfyui_llamafile')
+    //   let chartDom = div.querySelector('.chart')
+    //   if (chartDom) {
+    //     chartDom.style.display = `none`
+    //   }
+    //   currentNodesBtn.setAttribute('data-display', '0')
+    // } else {
+    //
+    let nodes = await loadCurrentNodes()
+    //已安装的所有节点
+
+    createChart(_MYALLNODES, nodes)
+
+    currentNodesBtn.setAttribute('data-display', '1')
+    // }
+  })
+  return currentNodesBtn
+}
+
+function createAllNodeBtn () {
+  let nodesBtn = document.createElement('button')
+  nodesBtn.style = `color: var(--input-text);
+  background-color: var(--comfy-input-bg);
+  border-radius: 8px;
+  border-color: var(--border-color);
+  cursor: pointer;`
+  nodesBtn.innerText = `All Nodes`
+  nodesBtn.addEventListener('click', async e => {
+    e.preventDefault()
+    //
+    let nodes = await loadMyAllNodes()
+    //已安装的所有节点
+
+    createChart(_MYALLNODES, nodes)
+
+    nodesBtn.setAttribute('data-display', '1')
+    // }
+  })
+  return nodesBtn
+}
+
+async function createChatbotPannel () {
+  let mixlab_comfyui_llamafile = document.querySelector(
+    '#mixlab_comfyui_llamafile'
+  )
+  if (!mixlab_comfyui_llamafile) {
+    mixlab_comfyui_llamafile = document.createElement('div')
+    mixlab_comfyui_llamafile.id = 'mixlab_comfyui_llamafile'
+    document.body.appendChild(mixlab_comfyui_llamafile)
+
+    // 顶部
+    let headerBar = document.createElement('div')
+    headerBar.style = `display: flex;
+        width: calc(100% - 24px);
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 12px;
+        height: 44px;`
+
+    mixlab_comfyui_llamafile.appendChild(headerBar)
+
+    // 顶部title
+    let textB = document.createElement('p')
+    textB.style.fontSize = '12px'
+    textB.innerText = `🤖 Chatbot ♾️Mixlab`
+    headerBar.appendChild(textB)
+
+    //右侧关闭区域
+    let closeBtns = document.createElement('div')
+    headerBar.appendChild(closeBtns)
+
+    // 关闭按钮
+    let btnB = document.createElement('button')
+    btnB.style = `float: right; border: none; color: var(--input-text);
+     background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;`
+    btnB.addEventListener('click', () => {
+      mixlab_comfyui_llamafile.style.display = 'none'
+      // stopModel()
+    })
+    btnB.innerText = 'X'
+    closeBtns.appendChild(btnB)
+
+    //stop 模型服务
+    let stopModelBtn = document.createElement('button')
+    stopModelBtn.id = 'llamafile_stop_model_btn'
+    stopModelBtn.style = `display:none;float: right; border: none; color: var(--input-text);
+     background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;margin-right:12px`
+    stopModelBtn.addEventListener('click', () => {
+      mixlab_comfyui_llamafile.style.display = 'none'
+      stopModel()
+      stopModelBtn.style.display = 'none'
+    })
+    stopModelBtn.innerText = 'Stop Chatbot'
+    closeBtns.appendChild(stopModelBtn)
+
+    // 悬浮框拖动事件
+    headerBar.addEventListener('mousedown', function (e) {
+      var startX = e.clientX
+      var startY = e.clientY
+      var offsetX = mixlab_comfyui_llamafile.offsetLeft
+      var offsetY = mixlab_comfyui_llamafile.offsetTop
+
+      function moveBox (e) {
+        var newX = e.clientX
+        var newY = e.clientY
+        var deltaX = newX - startX
+        var deltaY = newY - startY
+        mixlab_comfyui_llamafile.style.left = offsetX + deltaX + 'px'
+        mixlab_comfyui_llamafile.style.top = offsetY + deltaY + 'px'
+        localStorage.setItem(
+          'mixlab_app_pannel',
+          JSON.stringify({
+            x: mixlab_comfyui_llamafile.style.left,
+            y: mixlab_comfyui_llamafile.style.top
+          })
+        )
+      }
+
+      function stopMoving () {
+        document.removeEventListener('mousemove', moveBox)
+        document.removeEventListener('mouseup', stopMoving)
+      }
+
+      document.addEventListener('mousemove', moveBox)
+      document.addEventListener('mouseup', stopMoving)
+    })
+
+    // 功能区域
+    let content = document.createElement('div')
+    content.className = 'content'
+    content.style.width = '100%'
+    mixlab_comfyui_llamafile.appendChild(content)
+
+    // 模型选择
+    let modelsBtn = document.createElement('div')
+    modelsBtn.className = 'models'
+    modelsBtn.style.width = '100%'
+    content.appendChild(modelsBtn)
+
+    // node分析的功能
+    //  const currentNodesBtn = createCurrentNodeBtn()
+    //  content.appendChild(currentNodesBtn)
+    //  let allNodesBtn = createAllNodeBtn()
+    //  content.appendChild(allNodesBtn)
+
+    let localLLMBtn = document.createElement('button')
+    localLLMBtn.className = 'runLLM'
+    localLLMBtn.style = `color: var(--input-text);
+     background-color: var(--comfy-input-bg);
+     border-radius: 8px;
+     border-color: var(--border-color);
+     cursor: pointer;`
+    localLLMBtn.innerText = `Local AI assistant`
+    content.appendChild(localLLMBtn)
+
+    let addNodeBtn = document.createElement('button')
+    addNodeBtn.style = `color: var(--input-text);
+     background-color: var(--comfy-input-bg);
+     border-radius: 8px;
+     border-color: var(--border-color);
+     position: absolute;
+     right: 24px;
+     top: 56px;
+     cursor: pointer;display:none`
+    addNodeBtn.innerText = `Add Node`
+    content.appendChild(addNodeBtn)
+
+    // 添加node
+    addNodeBtn.addEventListener('click', e => {
+      e.preventDefault()
+      var node = LiteGraph.createNode('TextInput_')
+
+      // 获取文本
+      let llm = document.querySelector('#llm')
+      let texts = document.createElement('div')
+      texts.innerHTML = llm.innerHTML
+      Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
+        c.remove()
+      )
+      node.widgets[0].value =
+        window.getSelection().toString() || texts.textContent
+
+      var last_node = app.graph.getNodeById(app.graph.last_node_id)
+      if (last_node) {
+        node.pos = [
+          last_node.pos[0] + last_node.size[0] + 24,
+          last_node.pos[1] - 48
+        ]
+      }
+
+      app.canvas.graph.add(node, false)
+      app.canvas.centerOnNode(node)
+    })
+
+    // 使用ai助手
+    localLLMBtn.addEventListener('click', async e => {
+      e.preventDefault()
+      // addNodeBtn.style.display = 'block'
+      let div = document.querySelector('#mixlab_comfyui_llamafile')
+      let chartDom = div.querySelector('.chart')
+      if (chartDom) {
+        chartDom.style.display = `none`
+      }
+      let llm = document.body.querySelector('#llm')
+
+      if (!llm) {
+        llm = document.createElement('div')
+        llm.id = 'llm'
+        llm.style.display = 'none'
+        llm.setAttribute('contenteditable', true)
+        content.appendChild(llm)
+        llm.addEventListener('input', async e => {
+          e.preventDefault()
+          if (e.data == '@' || e.data == '#') {
+            // 出现提示
+            if (llm.querySelector('.ask')) return
+
+            llm.innerText = llm.innerText.replace(e.data, '')
+
+            // 自动续写
+            let texts = document.createElement('div')
+            texts.innerHTML = llm.innerHTML
+            Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
+              c.remove()
+            )
+            llm.setAttribute('contenteditable', 'false')
+            console.log(texts.textContent)
+
+            let textContent = texts.textContent.trim()
+
+            // 是否需要调用rag：
+            if (
+              textContent.startsWith('Q:') ||
+              textContent.startsWith('Q：') ||
+              textContent.startsWith('q：') ||
+              textContent.startsWith('q:')
+            ) {
+              let ks = textContent.slice(2)
+              if (ks) {
+                const contexts = await search(ks)
+                if (contexts && contexts.length > 0) {
+                  textContent = createRagPrompt(ks, contexts)
+                }
+              }
+            }
+
+            if (e.data == '@') {
+              llm.innerHTML += `${await completion(
+                textContent,
+                await getSelectImageNode()
+              )}`.replace(/\n/g, '<br>')
+            } else if (e.data == '#') {
+              await chat(textContent, await getSelectImageNode(), t => {
+                llm.innerHTML += t.replace(/\n/g, '<br>')
+              })
+            }
+
+            // llm.appendChild(b)
+            llm.setAttribute('contenteditable', 'true')
+
+            addNodeBtn.style.display = 'block'
+          }
+          console.log(llm.textContent)
+        })
+      }
+      llm.setAttribute('contenteditable', 'true')
+      llm.innerText = ''
+      llm.focus()
+      // 加载中
+      localLLMBtn.innerText = `Loading`
+
+      modelsBtn.innerHTML = ''
+      let h = await health()
+      console.log('health', h)
+
+      if (h.match('Error')) {
+        let models = await getModels()
+        console.log(models)
+        // llm.innerHTML += models
+        if (models.length > 0) {
+          localLLMBtn.innerText = 'refresh models'
+
+          Array.from(models, m => {
+            let b = document.createElement('button')
+            b.innerText = m
+            b.setAttribute('contenteditable', 'false')
+            b.style = `color: var(--input-text);
+     background-color: var(--comfy-input-bg);
+     border-radius: 8px;
+     border-color: var(--border-color);
+     cursor: pointer;    padding: 12px;
+     margin: 8px;`
+            b.addEventListener('click', async e => {
+              e.preventDefault()
+
+              if (window._checkHealth) {
+                clearInterval(window._checkHealth)
+                window._checkHealth = null
+              }
+
+              localLLMBtn.innerText = `Loading`
+              modelsBtn.innerHTML = ''
+              // llm.setAttribute('contenteditable', 'false')
+              // llm.innerText = ''
+              await runModel(m)
+              window._checkHealth = setInterval(async () => {
+                let h = await health()
+                if (h === 'ok') {
+                  if (window._checkHealth) {
+                    clearInterval(window._checkHealth)
+                    window._checkHealth = null
+                  }
+
+                  localLLMBtn = `Status:${h}`
+                  llm.setAttribute('contenteditable', 'true')
+                  llm.style.display = 'block'
+                  // Test()
+                  document.body.querySelector(
+                    '#llamafile_stop_model_btn'
+                  ).style.display = 'block'
+                }
+              }, 1000)
+            })
+            modelsBtn.appendChild(b)
+          })
+        } else {
+          // 状态
+          localLLMBtn.innerText = `pls download models >`
+        }
+      } else {
+        // 状态
+        localLLMBtn.innerText = `Status:${h}`
+        // Test()
+        document.body.querySelector('#llamafile_stop_model_btn').style.display =
+          'block'
+
+        llm.setAttribute('contenteditable', 'true')
+        llm.style.display = 'block'
+
+        document.body.querySelector(
+          '#mixlab_chatbot_by_llamafile_btn'
+        ).style.borderBottom = '1px solid red'
+      }
+    })
+  } else {
+    mixlab_comfyui_llamafile.querySelector('.runLLM').innerText =
+      'Local AI assistant'
+  }
+
+  // 开关
+  if (mixlab_comfyui_llamafile.style.display == 'flex') {
+    mixlab_comfyui_llamafile.style.display = 'none'
+    // stopModel()
+  } else {
+    let pos = JSON.parse(
+      localStorage.getItem('mixlab_app_pannel') ||
+        JSON.stringify({ x: 0, y: 0 })
+    )
+
+    mixlab_comfyui_llamafile.style = `
+    flex-direction: column;
+    align-items: end;
+    display:flex;
+    position: absolute; 
+    top: ${pos.y}; left: ${pos.x}; width: 650px; 
+    color: var(--descrip-text);
+    background-color: var(--comfy-menu-bg);
+    padding: 10px; 
+    border: 1px solid black;z-index: 999999999;padding-top: 0;`
+    let h = await health()
+    if (h === 'ok') {
+      if (window._checkHealth) {
+        clearInterval(window._checkHealth)
+        window._checkHealth = null
+      }
+      let localLLMBtn = document.body.querySelector('.runLLM')
+      localLLMBtn = `Status:${h}`
+      let llm = document.body.querySelector('#llm')
+      if (llm) {
+        llm.setAttribute('contenteditable', 'true')
+        llm.style.display = 'block'
+      }
+
+      // Test()
+      document.body.querySelector('#llamafile_stop_model_btn').style.display =
+        'block'
+
+      document.body.querySelector(
+        '#mixlab_chatbot_by_llamafile_btn'
+      ).style.borderBottom = '1px solid red'
+    }
+  }
+
+  return mixlab_comfyui_llamafile
+}
+
+// 菜单入口
+async function createMenu () {
   const menu = document.querySelector('.comfy-menu')
   const separator = document.createElement('div')
   separator.style = `margin: 20px 0px;
@@ -478,309 +888,18 @@ async function createNodesCharts () {
   menu.append(separator)
 
   const appsButton = document.createElement('button')
-  appsButton.textContent = 'Nodes Map'
+  appsButton.id = 'mixlab_chatbot_by_llamafile_btn'
+  appsButton.textContent = '🤖 Chatbot'
 
-  appsButton.onclick = () => {
-    let div = document.querySelector('#mixlab_comfyui_llamafile')
-    if (!div) {
-      div = document.createElement('div')
-      div.id = 'mixlab_comfyui_llamafile'
-      document.body.appendChild(div)
-
-      let btn = document.createElement('div')
-      btn.style = `display: flex;
-     width: calc(100% - 24px);
-     justify-content: space-between;
-     align-items: center;
-     padding: 0 12px;
-     height: 44px;`
-      div.appendChild(btn)
-      let btnB = document.createElement('button')
-      let textB = document.createElement('p')
-      btn.appendChild(textB)
-      btn.appendChild(btnB)
-      textB.style.fontSize = '12px'
-      textB.innerText = `Nodes Map ♾️Mixlab`
-
-      btnB.style = `float: right; border: none; color: var(--input-text);
-     background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;`
-      btnB.addEventListener('click', () => {
-        div.style.display = 'none'
-        stopModel()
-      })
-      btnB.innerText = 'X'
-
-      let content = document.createElement('div')
-      content.className = 'content'
-      content.style.width = '100%'
-      div.appendChild(content)
-
-      // node分析的功能
-      let nodesBtn = document.createElement('button')
-      nodesBtn.style = `color: var(--input-text);
-      background-color: var(--comfy-input-bg);
-      border-radius: 8px;
-      border-color: var(--border-color);
-      cursor: pointer;`
-      nodesBtn.innerText = `All Nodes`
-
-      let currentNodesBtn = document.createElement('button')
-      currentNodesBtn.style = `color: var(--input-text);
-      background-color: var(--comfy-input-bg);
-      border-radius: 8px;
-      border-color: var(--border-color);
-      cursor: pointer;`
-      currentNodesBtn.innerText = `Current Nodes`
-
-      currentNodesBtn.addEventListener('click', async e => {
-        e.preventDefault()
-        // if (currentNodesBtn.getAttribute('data-display') === '1') {
-        //   // 关闭
-        //   let div = document.querySelector('#mixlab_comfyui_llamafile')
-        //   let chartDom = div.querySelector('.chart')
-        //   if (chartDom) {
-        //     chartDom.style.display = `none`
-        //   }
-        //   currentNodesBtn.setAttribute('data-display', '0')
-        // } else {
-        //
-        let nodes = await loadCurrentNodes()
-        //已安装的所有节点
-
-        createChart(_MYALLNODES, nodes)
-
-        currentNodesBtn.setAttribute('data-display', '1')
-        // }
-      })
-      content.appendChild(currentNodesBtn)
-
-      nodesBtn.addEventListener('click', async e => {
-        e.preventDefault()
-        //
-        let nodes = await loadMyAllNodes()
-        //已安装的所有节点
-
-        createChart(_MYALLNODES, nodes)
-
-        nodesBtn.setAttribute('data-display', '1')
-        // }
-      })
-      content.appendChild(nodesBtn)
-
-      let localLLMBtn = document.createElement('button')
-      localLLMBtn.className = 'runLLM'
-      localLLMBtn.style = `color: var(--input-text);
-      background-color: var(--comfy-input-bg);
-      border-radius: 8px;
-      border-color: var(--border-color);
-      cursor: pointer;`
-      localLLMBtn.innerText = `Local AI assistant`
-      content.appendChild(localLLMBtn)
-
-      let addNodeBtn = document.createElement('button')
-      addNodeBtn.style = `color: var(--input-text);
-      background-color: var(--comfy-input-bg);
-      border-radius: 8px;
-      border-color: var(--border-color);
-      cursor: pointer;display:none`
-      addNodeBtn.innerText = `Add Node`
-      content.appendChild(addNodeBtn)
-
-      // 添加node
-      addNodeBtn.addEventListener('click', e => {
-        e.preventDefault()
-        var node = LiteGraph.createNode('TextInput_')
-
-        // 获取文本
-        let llm = document.querySelector('#llm')
-        let texts = document.createElement('div')
-        texts.innerHTML = llm.innerHTML
-        Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
-          c.remove()
-        )
-        node.widgets[0].value =
-          window.getSelection().toString() || texts.textContent
-
-        var last_node = app.graph.getNodeById(app.graph.last_node_id)
-        if (last_node) {
-          node.pos = [
-            last_node.pos[0] + last_node.size[0] + 24,
-            last_node.pos[1] - 48
-          ]
-        }
-
-        app.canvas.graph.add(node, false)
-        app.canvas.centerOnNode(node)
-      })
-
-      // 使用ai助手
-      localLLMBtn.addEventListener('click', async e => {
-        e.preventDefault()
-        // addNodeBtn.style.display = 'block'
-        let div = document.querySelector('#mixlab_comfyui_llamafile')
-        let chartDom = div.querySelector('.chart')
-        if (chartDom) {
-          chartDom.style.display = `none`
-        }
-        let llm = document.querySelector('#llm')
-
-        if (!llm) {
-          llm = document.createElement('div')
-          llm.id = 'llm'
-          llm.setAttribute('contenteditable', true)
-          content.appendChild(llm)
-          llm.addEventListener('input', async e => {
-            e.preventDefault()
-            if (e.data == '@' || e.data == '#') {
-              // 出现提示
-              if (llm.querySelector('.ask')) return
-
-              llm.innerText = llm.innerText.replace(e.data, '')
-
-              // 自动续写
-              let texts = document.createElement('div')
-              texts.innerHTML = llm.innerHTML
-              Array.from(texts.querySelectorAll('[contenteditable=false]'), c =>
-                c.remove()
-              )
-              llm.setAttribute('contenteditable', 'false')
-              console.log(texts.textContent)
-
-              let textContent = texts.textContent.trim()
-
-              // 是否需要调用rag：
-              if (
-                textContent.startsWith('Q:') ||
-                textContent.startsWith('Q：') ||
-                textContent.startsWith('q：') ||
-                textContent.startsWith('q:')
-              ) {
-                let ks = textContent.slice(2)
-                if (ks) {
-                  const contexts = await search(ks)
-                  if (contexts && contexts.length > 0) {
-                    textContent = createRagPrompt(ks, contexts)
-                  }
-                }
-              }
-
-              if (e.data == '@') {
-                llm.innerHTML += `${await completion(
-                  textContent,
-                  await getSelectImageNode()
-                )}`.replace(/\n/g, "<br>");
-              } else if (e.data == '#') {
-                await chat(textContent, await getSelectImageNode(), t => {
-                  llm.innerHTML += t.replace(/\n/g, "<br>");
-                })
-              }
-
-              // llm.appendChild(b)
-              llm.setAttribute('contenteditable', 'true')
-
-              addNodeBtn.style.display = 'block'
-            }
-            console.log(llm.textContent)
-          })
-        }
-        llm.setAttribute('contenteditable', 'true')
-        llm.innerText = ''
-        llm.focus()
-        // 加载中
-        localLLMBtn.innerText = `Loading`
-
-        let h = await health()
-        console.log('health', h)
-
-        if (h.match('Error')) {
-          let models = await getModels()
-          console.log(models)
-          // llm.innerHTML += models
-          if (models.length > 0) {
-            localLLMBtn.innerText = `select models`
-            Array.from(models, m => {
-              let b = document.createElement('button')
-              b.innerText = m
-              b.setAttribute('contenteditable', 'false')
-              b.addEventListener('click', async e => {
-                e.preventDefault()
-                localLLMBtn.innerText = `Loading`
-                llm.setAttribute('contenteditable', 'false')
-                llm.innerText = ''
-                await runModel(m)
-                window._checkHealth = setInterval(async () => {
-                  let h = await health()
-                  if (h === 'ok') {
-                    llm.setAttribute('contenteditable', 'true')
-                    clearInterval(window._checkHealth)
-                  }
-                }, 2000)
-              })
-              llm.appendChild(b)
-            })
-          } else {
-            // 状态
-            localLLMBtn.innerText = `pls download models>`
-          }
-        } else {
-          // 状态
-          localLLMBtn.innerText = `Status:${h}`
-          // Test()
-        }
-      })
-
-      // 悬浮框拖动事件
-      btn.addEventListener('mousedown', function (e) {
-        var startX = e.clientX
-        var startY = e.clientY
-        var offsetX = div.offsetLeft
-        var offsetY = div.offsetTop
-
-        function moveBox (e) {
-          var newX = e.clientX
-          var newY = e.clientY
-          var deltaX = newX - startX
-          var deltaY = newY - startY
-          div.style.left = offsetX + deltaX + 'px'
-          div.style.top = offsetY + deltaY + 'px'
-          localStorage.setItem(
-            'mixlab_app_pannel',
-            JSON.stringify({ x: div.style.left, y: div.style.top })
-          )
-        }
-
-        function stopMoving () {
-          document.removeEventListener('mousemove', moveBox)
-          document.removeEventListener('mouseup', stopMoving)
-        }
-
-        document.addEventListener('mousemove', moveBox)
-        document.addEventListener('mouseup', stopMoving)
-      })
-    } else {
-      div.querySelector('.runLLM').innerText = 'Local AI assistant'
-    }
-
-    if (div.style.display == 'flex') {
-      div.style.display = 'none'
-      stopModel()
-    } else {
-      let pos = JSON.parse(
-        localStorage.getItem('mixlab_app_pannel') ||
-          JSON.stringify({ x: 0, y: 0 })
-      )
-
-      div.style = `
-      flex-direction: column;
-      align-items: end;
-      display:flex;
-      position: absolute; 
-      top: ${pos.y}; left: ${pos.x}; width: 650px; 
-      color: var(--descrip-text);
-      background-color: var(--comfy-menu-bg);
-      padding: 10px; 
-      border: 1px solid black;z-index: 999999999;padding-top: 0;`
-    }
+  // appsButton.onclick = () =>
+  appsButton.onclick = async () => {
+    // let s=await health();
+    // if(s==='ok'){
+    //   appsButton.style.borderBottom='1px solid red'
+    // }else{
+    //   appsButton.style.borderBottom='none'
+    // }
+    createChatbotPannel()
   }
   menu.append(appsButton)
 }
@@ -862,7 +981,7 @@ app.registerExtension({
   name: 'Comfy.llamafile.main',
   init () {},
   setup () {
-    createNodesCharts()
+    createMenu()
     loadExternalScript('/extensions/comfyui-llamafile/lib/echarts.min.js')
     getAllNodes().then(n => (_MYALLNODES = n))
   },
