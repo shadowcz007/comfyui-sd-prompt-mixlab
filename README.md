@@ -29,16 +29,8 @@
 - 支持基于bing搜索的RAG增强问答, 输入 Q: 作为开头表示需要调用搜索
 
 
+## RAG use Chromium
 
 > python_embeded/Scripts/playwright install chromium
 
 
-
-<!-- 改进节点分类 -->
-	const defs = await api.getNodeDefs();
-		
-		for (const nodeId in defs) {
-			// defs[nodeId].category='app/test'
-			console.log(defs[nodeId].category,defs[nodeId].name)
-			this.registerNodeDef(nodeId, defs[nodeId]);
-		}
