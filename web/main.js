@@ -1009,25 +1009,27 @@ app.registerExtension({
 
       let opts = []
 
-      let text_widget = node.widgets.filter(
-        w => w.name === 'text' && typeof w.value == 'string'
-      )
+      if (node.widgets) {
+        let text_widget = node.widgets.filter(
+          w => w.name === 'text' && typeof w.value == 'string'
+        )
 
-      if (text_widget && text_widget.length == 1) {
-        opts = [
-          {
-            content: 'Text-to-Text by llamafile', // with a name
-            callback: () => {
-              LGraphCanvas.prototype.text2text(node)
-            } // and the callback
-          }
-          // {
-          //   content: 'Fix node v2', // with a name
-          //   callback: () => {
-          //     LGraphCanvas.prototype.fixTheNode(node)
-          //   }
-          // }
-        ]
+        if (text_widget && text_widget.length == 1) {
+          opts = [
+            {
+              content: 'Text-to-Text by llamafile', // with a name
+              callback: () => {
+                LGraphCanvas.prototype.text2text(node)
+              } // and the callback
+            }
+            // {
+            //   content: 'Fix node v2', // with a name
+            //   callback: () => {
+            //     LGraphCanvas.prototype.fixTheNode(node)
+            //   }
+            // }
+          ]
+        }
       }
 
       return [...opts, null, ...options] // and return the options
