@@ -24,9 +24,13 @@
 
 - 输入 @ 或者 # ，调用本地LLM完成续写
 
+- # 是chat模式，@是completion模式
+
 - 当选择了图像类节点，可以基于图像进行问答
 
 - 支持基于bing搜索的RAG增强问答, 输入 Q: 作为开头表示需要调用搜索
+
+- 右键使用，Text-to-Text by llamafile
 
 
 ## RAG use Chromium

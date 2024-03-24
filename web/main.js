@@ -571,6 +571,10 @@ async function createChatbotPannel () {
       mixlab_comfyui_llamafile.style.display = 'none'
       stopModel()
       stopModelBtn.style.display = 'none'
+      addNodeBtn.style.display = 'none'
+      document.body.querySelector(
+        '#mixlab_chatbot_by_llamafile_btn'
+      ).style.borderBottom = 'none'
     })
     stopModelBtn.innerText = 'Stop Chatbot'
     closeBtns.appendChild(stopModelBtn)
@@ -979,7 +983,56 @@ const loadTemplate = async () => {
 
 app.registerExtension({
   name: 'Comfy.llamafile.main',
-  init () {},
+  init () {
+    LGraphCanvas.prototype.text2text = async function (node) {
+      console.log(node)
+      let widget = node.widgets.filter(
+        w => w.name === 'text' && typeof w.value == 'string'
+      )[0]
+      if (widget) {
+        let isStart = true
+        await chat(widget.value, await getSelectImageNode(), t => {
+          // if (isStart) {
+          //   widget.value = ''
+          //   isStart = false
+          // }
+          widget.value += t
+        })
+      }
+    }
+
+    const getNodeMenuOptions = LGraphCanvas.prototype.getNodeMenuOptions // store the existing method
+    LGraphCanvas.prototype.getNodeMenuOptions = function (node) {
+      // replace it
+      const options = getNodeMenuOptions.apply(this, arguments) // start by calling the stored one
+      node.setDirtyCanvas(true, true) // force a redraw of (foreground, background)
+
+      let opts = []
+
+      let text_widget = node.widgets.filter(
+        w => w.name === 'text' && typeof w.value == 'string'
+      )
+
+      if (text_widget && text_widget.length == 1) {
+        opts = [
+          {
+            content: 'Text-to-Text by llamafile', // with a name
+            callback: () => {
+              LGraphCanvas.prototype.text2text(node)
+            } // and the callback
+          }
+          // {
+          //   content: 'Fix node v2', // with a name
+          //   callback: () => {
+          //     LGraphCanvas.prototype.fixTheNode(node)
+          //   }
+          // }
+        ]
+      }
+
+      return [...opts, null, ...options] // and return the options
+    }
+  },
   setup () {
     createMenu()
     loadExternalScript('/extensions/comfyui-llamafile/lib/echarts.min.js')
