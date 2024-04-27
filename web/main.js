@@ -3,7 +3,7 @@ import { app } from '../../../scripts/app.js'
 import { api } from '../../../scripts/api.js'
 let _MYALLNODES = {}
 
-const systemPrompt = `You are a prompt creator, your task is to create prompts for the user input request, the prompts are image descriptions that include keywords for (an adjective, type of image, framing/composition, subject, subject appearance/action, environment, lighting situation, details of the shoot/illustration, visuals aesthetics and artists), brake keywords by comas, provide high quality, non-verboose, coherent, brief, concise, and not superfluous prompts, the subject from the input request must be included verbatim on the prompt`
+const systemPrompt = `You are a prompt creator, your task is to create prompts for the user input request, the prompts are image descriptions that include keywords for (an adjective, type of image, framing/composition, subject, subject appearance/action, environment, lighting situation, details of the shoot/illustration, visuals aesthetics and artists), brake keywords by comas, provide high quality, non-verboose, coherent, brief, concise, and not superfluous prompts, the subject from the input request must be included verbatim on the prompt,the prompt is english`
 
 //判断是否重复
 function hasRepeatingPhrases (str) {
@@ -196,7 +196,7 @@ async function search (keyword) {
 async function chat (userInput, imageNode, callback, controller) {
   let data = {
     n_predict: 512, //长度
-    stop: ['</s>', 'Llama:', 'User:', '<|end|>'], //停止符
+    stop: ['</s>', 'Llama:', 'User:','Output:', '<|end|>'], //停止符
     grammar:
       'root ::= item+\n\n# Excludes various line break characters\nitem ::= "- " [^\\r\\n\\x0b\\x0c\\x85\\u2028\\u2029]+ "\\n"'
   }
@@ -208,7 +208,7 @@ async function chat (userInput, imageNode, callback, controller) {
   if (controller) {
     config = { controller }
   }
-  let prompt = `${systemPrompt.trim()}\n\nUser: ${userInput.trim()}\nLlama:`
+  let prompt = `${systemPrompt.trim()}\n\nUser: ${userInput.trim()}\nOutput:`
   const request = llama(prompt, 'http://127.0.0.1:8080', data, config)
   for await (const chunk of request) {
     if (callback) callback(chunk.data.content)
