@@ -7,7 +7,7 @@
 > by llamafile v0.8.1
 
 
-## Model download,move to :```models/llamafile```
+## Model download,move to :```models/llamafile/```
 
 强烈推荐：[Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/lmstudio-community/Phi-3-mini-4k-instruct-GGUF/tree/main)
 
