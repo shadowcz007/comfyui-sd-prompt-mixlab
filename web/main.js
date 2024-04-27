@@ -912,7 +912,10 @@ async function createChatbotPannel () {
               // })
             } else if (e.data == '@') {
               let controller = new AbortController()
-              let ends = []
+              let ends = [];
+
+              llm.innerHTML+='<br>'
+
               await chat(
                 textContent,
                 await getSelectImageNode(),
@@ -928,12 +931,10 @@ async function createChatbotPannel () {
                   if (hasRepeatingPhrases(ends.join(' '))) t = '<br>'
 
                   if (t.trim() == '<br>') {
-                    
                     llm.setAttribute('contenteditable', 'true')
 
-                    addNodeBtn.style.display = 'block';
+                    addNodeBtn.style.display = 'block'
                     controller.abort()
-
                   }
                 },
                 controller
@@ -1246,24 +1247,24 @@ app.registerExtension({
       )[0]
       if (widget) {
         let controller = new AbortController()
+        let ends = []
+        let userInput = widget.value
+        widget.value += '\n'
         await chat(
-          widget.value,
+          userInput,
           await getSelectImageNode(),
           t => {
             widget.value += t
             //有回车则终止
-            if (t.match(/\n/)) controller.abort()
+            t = t.replace(/\n/g, '<br>')
+            ends.push(t.trim())
+            if (hasRepeatingPhrases(ends.join(' '))) t = '<br>'
+            if (t.trim() == '<br>') {
+              controller.abort()
+            }
           },
           controller
         )
-
-        // await chat(widget.value, await getSelectImageNode(), t => {
-        //   // if (isStart) {
-        //   //   widget.value = ''
-        //   //   isStart = false
-        //   // }
-        //   widget.value += t
-        // })
       }
     }
 
@@ -1283,7 +1284,7 @@ app.registerExtension({
         if (text_widget && text_widget.length == 1) {
           opts = [
             {
-              content: 'Text-to-Text by llamafile', // with a name
+              content: 'Text-to-Text ♾️Mixlab', // with a name
               callback: () => {
                 LGraphCanvas.prototype.text2text(node)
               } // and the callback
