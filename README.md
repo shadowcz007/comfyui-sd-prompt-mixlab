@@ -4,6 +4,10 @@
 
 
 
+https://github.com/shadowcz007/comfyui-sd-prompt-mixlab/assets/12645064/2a8901c8-7360-4f22-a456-04d32c292f5b
+
+
+
 > by llamafile v0.8.1
 
 
@@ -28,11 +32,11 @@
 
 <!-- - 支持基于bing搜索的RAG增强问答, 输入 Q: 作为开头表示需要调用搜索 -->
 
-- 完成输入使用@ 自动补全。
+- 打开面板后，选择加载模型，在面板的使用方式：完成输入使用@ 自动补全。
 
 <!-- - 当选择了图像类节点，可以基于图像进行问答 -->
 
-- 在节点上右键使用，Text-to-Text by Mixlab
+- 在节点上的使用方式：右键菜单，Text-to-Text by Mixlab
 
 
 <!-- ## RAG use Chromium
