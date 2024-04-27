@@ -3,6 +3,19 @@ import { app } from '../../../scripts/app.js'
 import { api } from '../../../scripts/api.js'
 let _MYALLNODES = {}
 
+const systemPrompt = `You are a prompt creator, your task is to create prompts for the user input request, the prompts are image descriptions that include keywords for (an adjective, type of image, framing/composition, subject, subject appearance/action, environment, lighting situation, details of the shoot/illustration, visuals aesthetics and artists), brake keywords by comas, provide high quality, non-verboose, coherent, brief, concise, and not superfluous prompts, the subject from the input request must be included verbatim on the prompt`
+
+//判断是否重复
+function hasRepeatingPhrases (str) {
+  const phrases = str.split(',')
+  console.log(phrases)
+  for (let i = 0; i < phrases.length - 1; i++) {
+    if (phrases[i].trim() === phrases[i + 1].trim()) {
+      return true
+    }
+  }
+  return false
+}
 // css
 // Create a style element
 const style = document.createElement('style')
@@ -30,6 +43,39 @@ const cssRule = `
   height: 60vh;
   overflow-y: scroll;
   padding: 12px;
+}
+
+.loading{
+  border: 5px solid gray;
+  animation: borderChange 3s infinite;
+  pointer-events: all;
+}
+
+.mx_chat_status{
+  font-size: 12px;
+    max-width: 300px;
+   
+}
+
+.mx_close {
+  pointer-events: all;
+  float: right;
+  border: none;
+  color: var(--input-text);
+  background-color: var(--comfy-input-bg);
+  border-color: var(--border-color);
+  cursor: pointer;
+}
+
+#llamafile_stop_model_btn{
+  pointer-events: all;
+}
+
+#mixlab_chatbot_by_llamafile_btn{
+  font-size: 14px;
+  height: 40px;
+  border-width: 4px;
+  border-radius: 8px;
 }
 
 #llm[contenteditable="false"] {
@@ -145,14 +191,25 @@ async function search (keyword) {
   }
 }
 
-async function chat (prompt, imageNode, callback) {
+// 聊天模式
+// https://github.com/ggerganov/llama.cpp/blob/master/grammars/list.gbnf
+async function chat (userInput, imageNode, callback, controller) {
   let data = {
-    n_predict: 256
+    n_predict: 512, //长度
+    stop: ['</s>', 'Llama:', 'User:', '<|end|>'], //停止符
+    grammar:
+      'root ::= item+\n\n# Excludes various line break characters\nitem ::= "- " [^\\r\\n\\x0b\\x0c\\x85\\u2028\\u2029]+ "\\n"'
   }
   if (imageNode) {
     data = { ...data, image_data: [imageNode] }
   }
-  const request = llama(prompt, 'http://127.0.0.1:8080', data)
+
+  let config = {}
+  if (controller) {
+    config = { controller }
+  }
+  let prompt = `${systemPrompt.trim()}\n\nUser: ${userInput.trim()}\nLlama:`
+  const request = llama(prompt, 'http://127.0.0.1:8080', data, config)
   for await (const chunk of request) {
     if (callback) callback(chunk.data.content)
   }
@@ -170,21 +227,104 @@ async function Test () {
   console.log((await response.json()).content)
 }
 
-async function completion (prompt, imageNode) {
+async function* completion (prompt, imageNode) {
   let data = {
     prompt,
-    n_predict: 512
-    // stream:true
+    n_predict: 512,
+    stream: true
   }
   if (imageNode) {
     data = { ...data, image_data: [imageNode] }
   }
 
+  let controller = new AbortController()
+
   let response = await fetch('http://127.0.0.1:8080/completion', {
     method: 'POST',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    headers: {
+      Connection: 'keep-alive',
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream'
+    },
+    signal: controller.signal
   })
-  return (await response.json()).content
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+
+  let content = ''
+  let leftover = '' // Buffer for partially read lines
+
+  try {
+    let cont = true
+    while (cont) {
+      const result = await reader.read()
+      if (result.done) {
+        break
+      }
+
+      // Add any leftover data to the current chunk of data
+      const text = leftover + decoder.decode(result.value)
+
+      // Check if the last character is a line break
+      const endsWithLineBreak = text.endsWith('\n')
+
+      // Split the text into lines
+      let lines = text.split('\n')
+
+      // If the text doesn't end with a line break, then the last line is incomplete
+      // Store it in leftover to be added to the next chunk of data
+      if (!endsWithLineBreak) {
+        leftover = lines.pop()
+      } else {
+        leftover = '' // Reset leftover if we have a line break at the end
+      }
+
+      // Parse all sse events and add them to result
+      const regex = /^(\S+):\s(.*)$/gm
+      for (const line of lines) {
+        const match = regex.exec(line)
+        if (match) {
+          result[match[1]] = match[2]
+          // since we know this is llama.cpp, let's just decode the json in data
+          if (result.data) {
+            result.data = JSON.parse(result.data)
+            content += result.data.content
+
+            // yield
+            yield result
+
+            // if we got a stop token from server, we will break here
+            if (result.data.stop) {
+              if (result.data.generation_settings) {
+                // generation_settings = result.data.generation_settings;
+              }
+              cont = false
+              break
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error('llama error: ', e)
+    }
+    throw e
+  } finally {
+    controller.abort()
+  }
+
+  return content
+  // return (await response.json()).content
+}
+
+async function completion_ (prompt, imageNode, callback) {
+  let request = await completion(prompt, imageNode)
+  for await (const chunk of request) {
+    if (callback) callback(chunk.data.content)
+  }
 }
 
 async function makeChatCompletionRequest (content) {
@@ -231,7 +371,7 @@ async function fetchData (json) {
     })
     const data = await response.json()
     // 处理返回的数据
-    console.log(data)
+    // console.log(data)
     return data
   } catch (error) {
     // 处理错误情况
@@ -541,9 +681,13 @@ async function createChatbotPannel () {
   let mixlab_comfyui_llamafile = document.querySelector(
     '#mixlab_comfyui_llamafile'
   )
+
   if (!mixlab_comfyui_llamafile) {
     mixlab_comfyui_llamafile = document.createElement('div')
     mixlab_comfyui_llamafile.id = 'mixlab_comfyui_llamafile'
+
+    mixlab_comfyui_llamafile.className = 'loading'
+
     document.body.appendChild(mixlab_comfyui_llamafile)
 
     // 顶部
@@ -560,22 +704,30 @@ async function createChatbotPannel () {
     // 顶部title
     let textB = document.createElement('p')
     textB.style.fontSize = '12px'
-    textB.innerText = `🤖 Chatbot ♾️Mixlab ?HELP`;
-    textB.setAttribute('title',[
-      'As a start, the RAG (Retrieval-Augmented Generation) for information retrieval enhancement will be called. To complete the input, use "@" to invoke the chat mode, and "#" for text completion mode.',
-      'Q:作为开始，则会调用RAG检索增强。 @ 调用chat模式，# 是文本补全模式。'
-    ].join('\n'))
+    textB.innerText = `SD Prompt ♾️Mixlab ?HELP`
+    textB.setAttribute(
+      'title',
+      [
+        'To complete the input, use "@" to invoke the completion mode',
+        '@ 调用chat模式'
+      ].join('\n')
+    )
 
     headerBar.appendChild(textB)
 
     //右侧关闭区域
     let closeBtns = document.createElement('div')
     headerBar.appendChild(closeBtns)
+    closeBtns.style = `    min-width: 200px;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: center;`
 
     // 关闭按钮
     let btnB = document.createElement('button')
-    btnB.style = `float: right; border: none; color: var(--input-text);
-     background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;`
+    btnB.className = 'mx_close'
+
     btnB.addEventListener('click', () => {
       mixlab_comfyui_llamafile.style.display = 'none'
       // stopModel()
@@ -596,9 +748,17 @@ async function createChatbotPannel () {
       document.body.querySelector(
         '#mixlab_chatbot_by_llamafile_btn'
       ).style.borderBottom = 'none'
+
+      if (document.body.querySelector('#llm'))
+        document.body.querySelector('#llm').style.display = 'none'
     })
-    stopModelBtn.innerText = 'Stop Chatbot'
+    stopModelBtn.innerText = 'Unload Model'
     closeBtns.appendChild(stopModelBtn)
+
+    //状态
+    let statusDiv = document.createElement('div')
+    statusDiv.className = 'mx_chat_status'
+    closeBtns.appendChild(statusDiv)
 
     // 悬浮框拖动事件
     headerBar.addEventListener('mousedown', function (e) {
@@ -651,8 +811,8 @@ async function createChatbotPannel () {
     //  content.appendChild(allNodesBtn)
 
     let localLLMBtn = document.createElement('button')
-    localLLMBtn.className = 'runLLM' 
-    localLLMBtn.innerText = `Local AI assistant`
+    localLLMBtn.className = 'runLLM'
+    localLLMBtn.innerText = `Load Model`
     content.appendChild(localLLMBtn)
 
     let addNodeBtn = document.createElement('button')
@@ -704,11 +864,11 @@ async function createChatbotPannel () {
         chartDom.style.display = `none`
       }
       let llm = document.body.querySelector('#llm')
-  
+
       if (!llm) {
         llm = document.createElement('div')
         llm.id = 'llm'
-        llm.style.display = 'none';
+        llm.style.display = 'none'
         llm.setAttribute('contenteditable', true)
         content.appendChild(llm)
         llm.addEventListener('input', async e => {
@@ -731,30 +891,53 @@ async function createChatbotPannel () {
             let textContent = texts.textContent.trim()
 
             // 是否需要调用rag：
-            if (
-              textContent.startsWith('Q:') ||
-              textContent.startsWith('Q：') ||
-              textContent.startsWith('q：') ||
-              textContent.startsWith('q:')
-            ) {
-              let ks = textContent.slice(2)
-              if (ks) {
-                const contexts = await search(ks)
-                if (contexts && contexts.length > 0) {
-                  textContent = createRagPrompt(ks, contexts)
-                }
-              }
-            }
+            // if (
+            //   textContent.startsWith('Q:') ||
+            //   textContent.startsWith('Q：') ||
+            //   textContent.startsWith('q：') ||
+            //   textContent.startsWith('q:')
+            // ) {
+            //   let ks = textContent.slice(2)
+            //   if (ks) {
+            //     const contexts = await search(ks)
+            //     if (contexts && contexts.length > 0) {
+            //       textContent = createRagPrompt(ks, contexts)
+            //     }
+            //   }
+            // }
 
             if (e.data == '#') {
-              llm.innerHTML += `${await completion(
-                textContent,
-                await getSelectImageNode()
-              )}`.replace(/\n/g, '<br>')
+              // await completion_(textContent, await getSelectImageNode(), t => {
+              //   llm.innerHTML += t.replace(/\n/g, '<br>')
+              // })
             } else if (e.data == '@') {
-              await chat(textContent, await getSelectImageNode(), t => {
-                llm.innerHTML += t.replace(/\n/g, '<br>')
-              })
+              let controller = new AbortController()
+              let ends = []
+              await chat(
+                textContent,
+                await getSelectImageNode(),
+                t => {
+                  t = t.replace(/\n/g, '<br>')
+                  llm.innerHTML += t
+                  //有回车则终止
+                  console.log(t.trim() == '<br>', t)
+
+                  ends.push(t.trim())
+                  // if (ends.length > 50) ends.shift()
+
+                  if (hasRepeatingPhrases(ends.join(' '))) t = '<br>'
+
+                  if (t.trim() == '<br>') {
+                    
+                    llm.setAttribute('contenteditable', 'true')
+
+                    addNodeBtn.style.display = 'block';
+                    controller.abort()
+
+                  }
+                },
+                controller
+              )
             }
 
             // llm.appendChild(b)
@@ -769,13 +952,19 @@ async function createChatbotPannel () {
       llm.innerText = ''
       llm.focus()
       // 加载中
-      if(localLLMBtn.innerText!='Loading')  localLLMBtn.innerText = `Loading`
+      document.body.querySelector('.mx_chat_status').innerText = `Loading`
 
       modelsBtn.innerHTML = ''
       let h = await health()
-      console.log('health', h)
 
       if (h.match('Error')) {
+        // localLLMBtn.innerText = h;
+        document.body.querySelector('.mx_chat_status').innerText = 'unavailable'
+        console.log(h)
+
+        localLLMBtn.style.display = 'block'
+        // llm.style.display = 'none'
+
         let models = await getModels()
         console.log(models)
         // llm.innerHTML += models
@@ -795,33 +984,15 @@ async function createChatbotPannel () {
             b.addEventListener('click', async e => {
               e.preventDefault()
 
-              if (window._checkHealth) {
-                clearInterval(window._checkHealth)
-                window._checkHealth = null
-              }
-
-              localLLMBtn.innerText = `Loading`
+              document.body.querySelector(
+                '.mx_chat_status'
+              ).innerText = `Loading`
               modelsBtn.innerHTML = ''
               // llm.setAttribute('contenteditable', 'false')
               // llm.innerText = ''
               await runModel(m)
-              window._checkHealth = setInterval(async () => {
-                let h = await health()
-                if (h === 'ok') {
-                  if (window._checkHealth) {
-                    clearInterval(window._checkHealth)
-                    window._checkHealth = null
-                  }
 
-                  localLLMBtn = `Status:${h}`
-                  llm.setAttribute('contenteditable', 'true')
-                  llm.style.display = 'block'
-                  // Test()
-                  document.body.querySelector(
-                    '#llamafile_stop_model_btn'
-                  ).style.display = 'block'
-                }
-              }, 1000)
+              updateStatus()
             })
             modelsBtn.appendChild(b)
           })
@@ -831,7 +1002,7 @@ async function createChatbotPannel () {
         }
       } else {
         // 状态
-        localLLMBtn.innerText = `Status:${h}`
+        document.body.querySelector('.mx_chat_status').innerText = `Status:${h}`
         // Test()
         document.body.querySelector('#llamafile_stop_model_btn').style.display =
           'block'
@@ -842,11 +1013,16 @@ async function createChatbotPannel () {
         document.body.querySelector(
           '#mixlab_chatbot_by_llamafile_btn'
         ).style.borderBottom = '1px solid red'
+
+        // let runLLM = document.body.querySelector('button.runLLM')
+        localLLMBtn.style.display = 'none'
       }
     })
   } else {
-    mixlab_comfyui_llamafile.querySelector('.runLLM').innerText =
-      'Local AI assistant'
+    mixlab_comfyui_llamafile.querySelector('.runLLM').innerText = 'Load Model'
+
+    if (!mixlab_comfyui_llamafile.classList.contains('loading'))
+      mixlab_comfyui_llamafile.classList.add('loading')
   }
 
   // 开关
@@ -875,8 +1051,8 @@ async function createChatbotPannel () {
         clearInterval(window._checkHealth)
         window._checkHealth = null
       }
-      let localLLMBtn = document.body.querySelector('.runLLM')
-      localLLMBtn = `Status:${h}`
+
+      document.body.querySelector('.mx_chat_status').innerText = `Status:${h}`
       let llm = document.body.querySelector('#llm')
       if (llm) {
         llm.setAttribute('contenteditable', 'true')
@@ -890,10 +1066,73 @@ async function createChatbotPannel () {
       document.body.querySelector(
         '#mixlab_chatbot_by_llamafile_btn'
       ).style.borderBottom = '1px solid red'
+
+      let runLLM = document.body.querySelector('button.runLLM')
+      runLLM.style.display = 'none'
+    } else {
+      let runLLM = document.body.querySelector('button.runLLM')
+      runLLM.style.display = 'block'
     }
   }
 
+  //health 检测
+  checkHealth()
+
   return mixlab_comfyui_llamafile
+}
+
+async function checkHealth () {
+  let s = document.body.querySelector('.mx_chat_status')
+  let pannel = document.body.querySelector('#mixlab_comfyui_llamafile')
+  if (!pannel.classList.contains('loading')) pannel.classList.add('loading')
+
+  let runLLM = document.body.querySelector('button.runLLM')
+
+  let h = await health()
+  if (h === 'ok') {
+    if (window._checkHealth) {
+      clearInterval(window._checkHealth)
+      window._checkHealth = null
+    }
+
+    pannel.classList.remove('loading')
+
+    s.innerText = `Status:${h}`
+
+    let llm = document.body.querySelector('#llm')
+    if (!llm) {
+      runLLM.click()
+    } else {
+      console.log('#显示对话框', llm)
+      llm.setAttribute('contenteditable', 'true')
+      llm.style.display = 'block'
+    }
+
+    // Test()
+    document.body.querySelector('#llamafile_stop_model_btn').style.display =
+      'block'
+
+    runLLM.style.display = 'none'
+  } else {
+    s.innerText = 'unavailable'
+    console.log(h)
+    pannel.classList.remove('loading')
+    // document.body.querySelector('#llamafile_stop_model_btn').style.display =
+    //   'block'
+
+    runLLM.style.display = 'block'
+
+    let llm = document.body.querySelector('#llm')
+    // if (llm) llm.style.display = 'none'
+  }
+}
+
+function updateStatus () {
+  if (window._checkHealth) {
+    clearInterval(window._checkHealth)
+    window._checkHealth = null
+  }
+  window._checkHealth = setInterval(checkHealth, 1000)
 }
 
 // 菜单入口
@@ -909,7 +1148,7 @@ async function createMenu () {
 
   const appsButton = document.createElement('button')
   appsButton.id = 'mixlab_chatbot_by_llamafile_btn'
-  appsButton.textContent = '🤖 Chatbot'
+  appsButton.textContent = 'SDPrompt♾️Mixlab'
 
   // appsButton.onclick = () =>
   appsButton.onclick = async () => {
@@ -1006,14 +1245,25 @@ app.registerExtension({
         w => w.name === 'text' && typeof w.value == 'string'
       )[0]
       if (widget) {
-        let isStart = true
-        await chat(widget.value, await getSelectImageNode(), t => {
-          // if (isStart) {
-          //   widget.value = ''
-          //   isStart = false
-          // }
-          widget.value += t
-        })
+        let controller = new AbortController()
+        await chat(
+          widget.value,
+          await getSelectImageNode(),
+          t => {
+            widget.value += t
+            //有回车则终止
+            if (t.match(/\n/)) controller.abort()
+          },
+          controller
+        )
+
+        // await chat(widget.value, await getSelectImageNode(), t => {
+        //   // if (isStart) {
+        //   //   widget.value = ''
+        //   //   isStart = false
+        //   // }
+        //   widget.value += t
+        // })
       }
     }
 

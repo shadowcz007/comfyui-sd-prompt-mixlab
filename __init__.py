@@ -3,9 +3,6 @@ import platform
 import subprocess
 from server import PromptServer
 import folder_paths
-import openai 
-import time,json
-import urllib.error
 import requests
 import psutil
 
@@ -13,7 +10,7 @@ python = sys.executable
 global process
 process=None
 
-from .search.Search import Bing
+# from .search.Search import Bing
 # from server import PromptServer
 
 try:
@@ -138,11 +135,11 @@ async def llamafile_hander(request):
     return web.json_response(result)
 
 
-@routes.post('/search/bing')
-async def search_hander(request):
-    data = await request.json()
-    result=Bing(data['keyword'])
-    return web.json_response(result)
+# @routes.post('/search/bing')
+# async def search_hander(request):
+#     data = await request.json()
+#     result=Bing(data['keyword'])
+#     return web.json_response(result)
 
 
 # web ui的节点功能
