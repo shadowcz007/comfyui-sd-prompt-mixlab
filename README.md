@@ -4,19 +4,19 @@
 
 
 
-> llamafile v0.8.1
+> by llamafile v0.8.1
 
 
-> Model download,move to :```models/llamafile```
+## Model download,move to :```models/llamafile```
 
-[Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/lmstudio-community/Phi-3-mini-4k-instruct-GGUF/tree/main)
+强烈推荐：[Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/lmstudio-community/Phi-3-mini-4k-instruct-GGUF/tree/main)
 
-[llama3_if_ai_sdpromptmkr_q2k](https://hf-mirror.com/impactframes/llama3_if_ai_sdpromptmkr_q2k/tree/main)
+备选：[llama3_if_ai_sdpromptmkr_q2k](https://hf-mirror.com/impactframes/llama3_if_ai_sdpromptmkr_q2k/tree/main)
 
-[llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true)
+<!-- - [llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true) -->
 
 
-## 
+## How to use
 - Input @ to invoke local LLM for completion.
 
 <!-- - When selecting an image node, you can ask questions based on the image. -->
@@ -25,7 +25,7 @@
 
 - Right-click to use on node, Text-to-Text by Mixlab
 
-## 
+
 <!-- - 支持基于bing搜索的RAG增强问答, 输入 Q: 作为开头表示需要调用搜索 -->
 
 - 完成输入使用@ 自动补全。
