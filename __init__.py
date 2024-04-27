@@ -31,7 +31,7 @@ model_path=os.path.join(folder_paths.models_dir, "llamafile")
 
 if not os.path.exists(model_path):
     os.mkdir(model_path)
-    print(f"##  llamafile model not found， pls download from https://github.com/shadowcz007/llamafile")
+    print(f"##  llamafile model not found， pls download from https://github.com/Mozilla-Ocho/llamafile")
 
 def get_models():
     files = os.listdir(model_path)
@@ -54,7 +54,7 @@ def run_llamafile(llamafile,file_name):
     #todo 修改为llama cmd 运行
     #   ./llamafile.exe -ngl 9999 -m openchat-3.5-0106.Q4_K_M.gguf --server --nobrowser
     
-    command = f"{llamafile} -m {mp} --n-gpu-layers 15 --server --nobrowser"
+    command = f"{llamafile} -m {mp} --n-gpu-layers 999 --server --nobrowser"
 
     # Grant execution permission on macOS, Linux, or BSD
     if operating_system in ["Darwin", "Linux", "FreeBSD", "OpenBSD"]:

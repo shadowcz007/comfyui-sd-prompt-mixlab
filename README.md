@@ -4,7 +4,14 @@
 *施工中，未完成
 *请注意，本节点为实验性节点，旨在探索人机协作的创作方式
 
+> llamafile v0.8.1
+
+
 > Model download:
+
+[llama3_if_ai_sdpromptmkr_q2k](https://hf-mirror.com/impactframes/llama3_if_ai_sdpromptmkr_q2k/tree/main)
+
+[Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/lmstudio-community/Phi-3-mini-4k-instruct-GGUF/tree/main)
 
 [llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true),move to :models/llamafile
 

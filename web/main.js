@@ -8,6 +8,22 @@ let _MYALLNODES = {}
 const style = document.createElement('style')
 // Define the CSS rule for scrollbar width
 const cssRule = `
+
+.runLLM{
+  border:none;
+  padding: 12px;
+  color: var(--input-text);
+  background-color: var(--comfy-input-bg);
+  border-radius: 8px;
+  border-color: var(--border-color);
+  cursor: pointer;
+}
+
+.runLLM:hover{
+  background-color: #2b2b2b;
+  color: gray;
+}
+
 #llm {
   margin: 24px;
   outline: 1px solid;
@@ -544,7 +560,12 @@ async function createChatbotPannel () {
     // 顶部title
     let textB = document.createElement('p')
     textB.style.fontSize = '12px'
-    textB.innerText = `🤖 Chatbot ♾️Mixlab`
+    textB.innerText = `🤖 Chatbot ♾️Mixlab ?HELP`;
+    textB.setAttribute('title',[
+      'As a start, the RAG (Retrieval-Augmented Generation) for information retrieval enhancement will be called. To complete the input, use "@" to invoke the chat mode, and "#" for text completion mode.',
+      'Q:作为开始，则会调用RAG检索增强。 @ 调用chat模式，# 是文本补全模式。'
+    ].join('\n'))
+
     headerBar.appendChild(textB)
 
     //右侧关闭区域
@@ -630,12 +651,7 @@ async function createChatbotPannel () {
     //  content.appendChild(allNodesBtn)
 
     let localLLMBtn = document.createElement('button')
-    localLLMBtn.className = 'runLLM'
-    localLLMBtn.style = `color: var(--input-text);
-     background-color: var(--comfy-input-bg);
-     border-radius: 8px;
-     border-color: var(--border-color);
-     cursor: pointer;`
+    localLLMBtn.className = 'runLLM' 
     localLLMBtn.innerText = `Local AI assistant`
     content.appendChild(localLLMBtn)
 
@@ -688,11 +704,11 @@ async function createChatbotPannel () {
         chartDom.style.display = `none`
       }
       let llm = document.body.querySelector('#llm')
-
+  
       if (!llm) {
         llm = document.createElement('div')
         llm.id = 'llm'
-        llm.style.display = 'none'
+        llm.style.display = 'none';
         llm.setAttribute('contenteditable', true)
         content.appendChild(llm)
         llm.addEventListener('input', async e => {
@@ -730,12 +746,12 @@ async function createChatbotPannel () {
               }
             }
 
-            if (e.data == '@') {
+            if (e.data == '#') {
               llm.innerHTML += `${await completion(
                 textContent,
                 await getSelectImageNode()
               )}`.replace(/\n/g, '<br>')
-            } else if (e.data == '#') {
+            } else if (e.data == '@') {
               await chat(textContent, await getSelectImageNode(), t => {
                 llm.innerHTML += t.replace(/\n/g, '<br>')
               })
@@ -753,7 +769,7 @@ async function createChatbotPannel () {
       llm.innerText = ''
       llm.focus()
       // 加载中
-      localLLMBtn.innerText = `Loading`
+      if(localLLMBtn.innerText!='Loading')  localLLMBtn.innerText = `Loading`
 
       modelsBtn.innerHTML = ''
       let h = await health()
