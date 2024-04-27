@@ -44,3 +44,5 @@ https://github.com/shadowcz007/comfyui-sd-prompt-mixlab/assets/12645064/2a8901c8
 > python_embeded/Scripts/playwright install chromium -->
 
 
+
+### [Mixlab nodes discord](https://discord.gg/cXs9vZSqeK)
