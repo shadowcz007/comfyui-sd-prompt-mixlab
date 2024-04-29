@@ -63,13 +63,14 @@ def run_llamafile(llamafile,file_name):
             return "llava-phi-3-mini-mmproj-f16.gguf"
         else:
             return None
-
+    
     command = f"{llamafile} -m {mp} --n-gpu-layers 999 --server --nobrowser"
 
     if match_visual_model(file_name):
         mmproj=match_visual_model(file_name)
         command = f"{llamafile} -m {mp} --mmproj {mmproj} --n-gpu-layers 999 --server --nobrowser"
 
+    print("\033[91m" + command + "\033[0m")
     # Grant execution permission on macOS, Linux, or BSD
     if operating_system in ["Darwin", "Linux", "FreeBSD", "OpenBSD"]:
         if not os.access(mp, os.X_OK):
