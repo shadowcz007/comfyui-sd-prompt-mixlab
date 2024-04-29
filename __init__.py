@@ -59,7 +59,7 @@ def run_llamafile(llamafile,file_name):
     # 增加判断，是否是视觉模型，--mmproj llava-v1.5-7b-mmproj-Q4_0.gguf
 
     def match_visual_model(model_name):
-        if model_name.starts_with("llava-phi-3-mini-"): 
+        if model_name.startswith("llava-phi-3-mini-"): 
             return "llava-phi-3-mini-mmproj-f16.gguf"
         else:
             return None
