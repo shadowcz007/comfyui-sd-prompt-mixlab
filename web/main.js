@@ -375,7 +375,7 @@ async function fetchData (json) {
     return data
   } catch (error) {
     // 处理错误情况
-    console.error(error)
+    console.log(error)
     return error
   }
 }
@@ -383,8 +383,8 @@ async function fetchData (json) {
 async function health () {
   let res = await fetchData({
     task: 'health'
-  })
-  let health = res.data
+  });
+  let health = res?.data
   return health
 }
 
@@ -401,7 +401,7 @@ async function initModel () {
     task: 'run'
   }
 
-  if (localStorage.getItem('_mix_sd_prompt_model')) {
+  if (localStorage.getItem('_mix_sd_prompt_model')&&localStorage.getItem('_mix_sd_prompt_model')!=='undefined') {
     data.model_name = localStorage.getItem('_mix_sd_prompt_model')
   }
   let res = await fetchData(data)

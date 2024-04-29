@@ -60,7 +60,7 @@ def run_llamafile(llamafile,file_name):
 
     def match_visual_model(model_name):
         if model_name.startswith("llava-phi-3-mini-"): 
-            return "llava-phi-3-mini-mmproj-f16.gguf"
+            return os.path.join(model_path,"llava-phi-3-mini-mmproj-f16.gguf")
         else:
             return None
     
