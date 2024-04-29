@@ -56,8 +56,19 @@ def run_llamafile(llamafile,file_name):
     # file_name = "llava-v1.5-7b-q4.llamafile"
     #todo 修改为llama cmd 运行
     #   ./llamafile.exe -ngl 9999 -m openchat-3.5-0106.Q4_K_M.gguf --server --nobrowser
-    
+    # 增加判断，是否是视觉模型，--mmproj llava-v1.5-7b-mmproj-Q4_0.gguf
+
+    def match_visual_model(model_name):
+        if model_name.lower() == "llava-phi-3-mini-": 
+            return "llava-phi-3-mini-mmproj-f16.gguf"
+        else:
+            return None
+
     command = f"{llamafile} -m {mp} --n-gpu-layers 999 --server --nobrowser"
+
+    if match_visual_model(file_name):
+        mmproj=match_visual_model(file_name)
+        command = f"{llamafile} -m {mp} --mmproj {mmproj} --n-gpu-layers 999 --server --nobrowser"
 
     # Grant execution permission on macOS, Linux, or BSD
     if operating_system in ["Darwin", "Linux", "FreeBSD", "OpenBSD"]:

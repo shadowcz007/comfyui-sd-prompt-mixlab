@@ -17,7 +17,10 @@ https://github.com/shadowcz007/comfyui-sd-prompt-mixlab/assets/12645064/2a8901c8
 
 备选：[llama3_if_ai_sdpromptmkr_q2k](https://hf-mirror.com/impactframes/llama3_if_ai_sdpromptmkr_q2k/tree/main)
 
-<!-- - [llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true) -->
+
+视觉模型:[llava-phi-3-mini-gguf](https://huggingface.co/xtuner/llava-phi-3-mini-gguf/tree/main)
+
+备选：[llava-v1.5-7B-GGUF](https://huggingface.co/jartine/llava-v1.5-7B-GGUF/resolve/main/llava-v1.5-7b-q4.llamafile?download=true)
 
 
 ## How to use
