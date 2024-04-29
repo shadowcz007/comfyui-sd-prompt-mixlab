@@ -383,7 +383,7 @@ async function fetchData (json) {
 async function health () {
   let res = await fetchData({
     task: 'health'
-  });
+  })
   let health = res?.data
   return health
 }
@@ -401,7 +401,10 @@ async function initModel () {
     task: 'run'
   }
 
-  if (localStorage.getItem('_mix_sd_prompt_model')&&localStorage.getItem('_mix_sd_prompt_model')!=='undefined') {
+  if (
+    localStorage.getItem('_mix_sd_prompt_model') &&
+    localStorage.getItem('_mix_sd_prompt_model') !== 'undefined'
+  ) {
     data.model_name = localStorage.getItem('_mix_sd_prompt_model')
   }
   let res = await fetchData(data)
@@ -699,10 +702,15 @@ function createAllNodeBtn () {
   return nodesBtn
 }
 
-async function createChatbotPannel () {
+window._t=createChatbotPannel
+
+async function createChatbotPannel (show = true) {
   let mixlab_comfyui_llamafile = document.querySelector(
     '#mixlab_comfyui_llamafile'
   )
+
+  if (mixlab_comfyui_llamafile)
+    mixlab_comfyui_llamafile.style.display = show == false ? 'none' : 'block'
 
   if (!mixlab_comfyui_llamafile) {
     mixlab_comfyui_llamafile = document.createElement('div')
@@ -711,6 +719,8 @@ async function createChatbotPannel () {
     mixlab_comfyui_llamafile.className = 'loading'
 
     document.body.appendChild(mixlab_comfyui_llamafile)
+
+    mixlab_comfyui_llamafile.style.display = show == false ? 'none' : 'block'
 
     // 顶部
     let headerBar = document.createElement('div')
@@ -773,8 +783,7 @@ async function createChatbotPannel () {
       if (document.body.querySelector('#llm'))
         document.body.querySelector('#llm').style.display = 'none'
 
-        stopModel()
-
+      stopModel()
     })
     stopModelBtn.innerText = 'Unload Model'
     closeBtns.appendChild(stopModelBtn)
@@ -1063,7 +1072,7 @@ async function createChatbotPannel () {
     mixlab_comfyui_llamafile.style = `
     flex-direction: column;
     align-items: end;
-    display:flex;
+    display:${show?'flex':'none'};
     position: absolute; 
     top: ${pos.y}; left: ${pos.x}; width: 650px; 
     color: var(--descrip-text);
@@ -1280,11 +1289,12 @@ app.registerExtension({
   init () {
     // 初始化加载模型
     initModel().then(() => {
+      createChatbotPannel(false)
       checkHealth()
     })
 
     LGraphCanvas.prototype.text2text = async function (node) {
-      console.log(node)
+      // console.log(node)
       let widget = node.widgets.filter(
         w => w.name === 'text' && typeof w.value == 'string'
       )[0]
@@ -1305,6 +1315,31 @@ app.registerExtension({
             if (t.trim() == '<br>') {
               controller.abort()
             }
+          },
+          controller
+        )
+      } else if (node.imgs && node.imgs.length > 0) {
+        let controller = new AbortController()
+        let ends = []
+
+        createChatbotPannel()
+
+        let llm = document.body.querySelector('#llm')
+        llm.innerHTML="";
+
+        await chat(
+          'What is the content of this picture?',
+          await getSelectImageNode(),
+          t => {
+            //有回车则终止
+            t = t.replace(/\n/g, '<br>')
+            llm.innerHTML += t
+            ends.push(t.trim())
+            if (hasRepeatingPhrases(ends.join(' '))) t = '<br>'
+            if (t.trim() == '<br>') {
+              controller.abort()
+            }
+            console.log(t)
           },
           controller
         )
@@ -1340,6 +1375,23 @@ app.registerExtension({
             // }
           ]
         }
+      }
+
+      if (node.imgs && node.imgs.length > 0) {
+        opts = [
+          {
+            content: 'Image-to-Text ♾️Mixlab', // with a name
+            callback: () => {
+              LGraphCanvas.prototype.text2text(node)
+            } // and the callback
+          }
+          // {
+          //   content: 'Fix node v2', // with a name
+          //   callback: () => {
+          //     LGraphCanvas.prototype.fixTheNode(node)
+          //   }
+          // }
+        ]
       }
 
       return [...opts, null, ...options] // and return the options

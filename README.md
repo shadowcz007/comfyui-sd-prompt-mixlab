@@ -1,3 +1,6 @@
+# ComfyUI-SD-Prompt-MixLab 
+一个生产提示（prompt）的插件
+
 *This node is an experimental node aimed at exploring the collaborative way of human-machine creation.
 
 *本节点为实验性节点，旨在探索人机协作的创作方式
