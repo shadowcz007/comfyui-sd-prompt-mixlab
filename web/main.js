@@ -196,7 +196,7 @@ async function search (keyword) {
 async function chat (userInput, imageNode, callback, controller) {
   let data = {
     n_predict: 512, //长度
-    stop: ['</s>', 'Llama:', 'User:','Output:', '<|end|>'], //停止符
+    stop: ['</s>', 'Llama:', 'User:', 'Output:', '<|end|>'], //停止符
     grammar:
       'root ::= item+\n\n# Excludes various line break characters\nitem ::= "- " [^\\r\\n\\x0b\\x0c\\x85\\u2028\\u2029]+ "\\n"'
   }
@@ -396,6 +396,22 @@ async function getModels () {
   return models
 }
 
+async function initModel () {
+  let data = {
+    task: 'run'
+  }
+
+  if (localStorage.getItem('_mix_sd_prompt_model')) {
+    data.model_name = localStorage.getItem('_mix_sd_prompt_model')
+  }
+  let res = await fetchData(data)
+  let hostUrl = res.data
+
+  localStorage.setItem('_mix_sd_prompt_model', res.model_name)
+
+  return hostUrl
+}
+
 async function runModel (
   model_name = 'TinyLlama-1.1B-Chat-v1.0.Q5_K_M.llamafile'
 ) {
@@ -404,6 +420,12 @@ async function runModel (
     model_name
   })
   let hostUrl = res.data
+  localStorage.setItem('_mix_sd_prompt_model', res.model_name)
+
+  document.body
+    .querySelector('#mixlab_chatbot_by_llamafile_btn')
+    .setAttribute('title', res.model_name)
+
   return hostUrl
 }
 
@@ -742,7 +764,6 @@ async function createChatbotPannel () {
      background-color: var(--comfy-input-bg); border-color: var(--border-color);cursor: pointer;margin-right:12px`
     stopModelBtn.addEventListener('click', () => {
       mixlab_comfyui_llamafile.style.display = 'none'
-      stopModel()
       stopModelBtn.style.display = 'none'
       addNodeBtn.style.display = 'none'
       document.body.querySelector(
@@ -751,6 +772,9 @@ async function createChatbotPannel () {
 
       if (document.body.querySelector('#llm'))
         document.body.querySelector('#llm').style.display = 'none'
+
+        stopModel()
+
     })
     stopModelBtn.innerText = 'Unload Model'
     closeBtns.appendChild(stopModelBtn)
@@ -912,9 +936,9 @@ async function createChatbotPannel () {
               // })
             } else if (e.data == '@') {
               let controller = new AbortController()
-              let ends = [];
+              let ends = []
 
-              llm.innerHTML+='<br>'
+              llm.innerHTML += '<br>'
 
               await chat(
                 textContent,
@@ -1085,7 +1109,8 @@ async function createChatbotPannel () {
 async function checkHealth () {
   let s = document.body.querySelector('.mx_chat_status')
   let pannel = document.body.querySelector('#mixlab_comfyui_llamafile')
-  if (!pannel.classList.contains('loading')) pannel.classList.add('loading')
+  if (pannel && !pannel.classList.contains('loading'))
+    pannel.classList.add('loading')
 
   let runLLM = document.body.querySelector('button.runLLM')
 
@@ -1096,13 +1121,13 @@ async function checkHealth () {
       window._checkHealth = null
     }
 
-    pannel.classList.remove('loading')
+    if (pannel) pannel.classList.remove('loading')
 
-    s.innerText = `Status:${h}`
+    if (s) s.innerText = `Status:${h}`
 
     let llm = document.body.querySelector('#llm')
     if (!llm) {
-      runLLM.click()
+      if (runLLM) runLLM.click()
     } else {
       console.log('#显示对话框', llm)
       llm.setAttribute('contenteditable', 'true')
@@ -1110,20 +1135,33 @@ async function checkHealth () {
     }
 
     // Test()
-    document.body.querySelector('#llamafile_stop_model_btn').style.display =
-      'block'
+    if (document.body.querySelector('#llamafile_stop_model_btn'))
+      document.body.querySelector('#llamafile_stop_model_btn').style.display =
+        'block'
 
-    runLLM.style.display = 'none'
+    document.body.querySelector(
+      '#mixlab_chatbot_by_llamafile_btn'
+    ).style.borderBottom = '1px solid red'
+    document.body
+      .querySelector('#mixlab_chatbot_by_llamafile_btn')
+      .setAttribute('title', localStorage.getItem('_mix_sd_prompt_model'))
+
+    if (runLLM) runLLM.style.display = 'none'
   } else {
-    s.innerText = 'unavailable'
-    console.log(h)
-    pannel.classList.remove('loading')
+    if (s) s.innerText = 'unavailable'
+    // console.log(h)
+    if (pannel) pannel.classList.remove('loading')
     // document.body.querySelector('#llamafile_stop_model_btn').style.display =
     //   'block'
 
-    runLLM.style.display = 'block'
+    if (runLLM) runLLM.style.display = 'block'
 
     let llm = document.body.querySelector('#llm')
+
+    document.body.querySelector(
+      '#mixlab_chatbot_by_llamafile_btn'
+    ).style.borderBottom = 'none'
+
     // if (llm) llm.style.display = 'none'
   }
 }
@@ -1240,6 +1278,11 @@ const loadTemplate = async () => {
 app.registerExtension({
   name: 'Comfy.llamafile.main',
   init () {
+    // 初始化加载模型
+    initModel().then(() => {
+      checkHealth()
+    })
+
     LGraphCanvas.prototype.text2text = async function (node) {
       console.log(node)
       let widget = node.widgets.filter(

@@ -24,6 +24,10 @@ except ImportError:
     sys.exit()
 
 
+# 优先使用phi
+def phi_sort(lst):
+    return sorted(lst, key=lambda x: x.lower().count('phi'), reverse=True)
+
 model_path=os.path.join(folder_paths.models_dir, "llamafile")
 
 if not os.path.exists(model_path):
@@ -36,6 +40,8 @@ def get_models():
     for file in files:
         if os.path.isfile(os.path.join(model_path, file)):
             res.append(file)
+
+    res=phi_sort(res)
     return res
 
 def run_llamafile(llamafile,file_name):
@@ -119,7 +125,8 @@ async def llamafile_hander(request):
             res=run_llamafile(os.path.join(dirname,'llamafile.exe'),model_name)
             if res:
                 result={
-                    "data":res
+                    "data":res,
+                    "model_name":model_name
                 }
         if data['task']=='stop':
             res=stop_llamafile()
@@ -141,6 +148,14 @@ async def llamafile_hander(request):
 #     result=Bing(data['keyword'])
 #     return web.json_response(result)
 
+NODE_CLASS_MAPPINGS = {
+    
+}
 
-# web ui的节点功能
+NODE_DISPLAY_NAME_MAPPINGS = {
+   
+}
+
 WEB_DIRECTORY = "./web"
+
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
