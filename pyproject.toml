@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-sd-prompt-mixlab"
+description = ""
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["aiohttp"]
+
+[project.urls]
+Repository = "https://github.com/shadowcz007/comfyui-sd-prompt-mixlab"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "comfyui-sd-prompt-mixlab"
+Icon = ""
