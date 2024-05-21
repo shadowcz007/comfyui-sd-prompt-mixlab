@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-sd-prompt-mixlab"
-description = ""
+description = "an experimental node aimed at exploring the collaborative way of human-machine creation"
 version = "1.0.0"
 license = "LICENSE"
 dependencies = ["aiohttp"]
